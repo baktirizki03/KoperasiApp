@@ -42,7 +42,7 @@ class _SimpananScreenState extends State<SimpananScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: RefreshIndicator(
         onRefresh: () async => _loadData(),
         child: FutureBuilder<List<dynamic>>(
@@ -56,7 +56,11 @@ class _SimpananScreenState extends State<SimpananScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline_rounded, size: 60, color: Colors.grey),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 60,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Gagal memuat data',
@@ -71,7 +75,11 @@ class _SimpananScreenState extends State<SimpananScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.account_balance_wallet_outlined, size: 80, color: Colors.grey[300]),
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 80,
+                      color: Colors.grey[300],
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Belum ada riwayat simpanan.',
@@ -83,7 +91,11 @@ class _SimpananScreenState extends State<SimpananScreen> {
             }
 
             final simpananList = snapshot.data!;
-            final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+            final formatter = NumberFormat.currency(
+              locale: 'id_ID',
+              symbol: 'Rp ',
+              decimalDigits: 0,
+            );
 
             return ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -112,11 +124,19 @@ class _SimpananScreenState extends State<SimpananScreen> {
                         color: Colors.green.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.inventory_2_rounded, color: Colors.green),
+                      child: const Icon(
+                        Icons.inventory_2_rounded,
+                        color: Colors.green,
+                      ),
                     ),
                     title: Text(
-                      formatter.format(double.parse(simpanan['nominal'].toString())),
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+                      formatter.format(
+                        double.parse(simpanan['nominal'].toString()),
+                      ),
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -125,19 +145,30 @@ class _SimpananScreenState extends State<SimpananScreen> {
                         children: [
                           Text(
                             simpanan['jenis_transaksi'],
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w500, color: Colors.black87),
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
                           ),
                           Text(
                             simpanan['tanggal'],
-                            style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 12),
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(simpanan['status']).withOpacity(0.1),
+                        color: _getStatusColor(
+                          simpanan['status'],
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(

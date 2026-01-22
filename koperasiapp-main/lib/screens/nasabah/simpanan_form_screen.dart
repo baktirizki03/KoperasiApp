@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
@@ -20,6 +19,7 @@ class _SimpananFormScreenState extends State<SimpananFormScreen> {
   final _tanggalController = TextEditingController();
   String? _jenisTransaksiValue;
   XFile? _buktiFile;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -44,13 +44,13 @@ class _SimpananFormScreenState extends State<SimpananFormScreen> {
   }
 
   Future<void> _pickFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png'],
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50, // Compress to 50%
     );
-    if (result != null) {
+    if (image != null) {
       setState(() {
-        _buktiFile = result.xFiles.single;
+        _buktiFile = image;
       });
     }
   }
@@ -117,7 +117,7 @@ class _SimpananFormScreenState extends State<SimpananFormScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _jenisTransaksiValue,
+                initialValue: _jenisTransaksiValue,
                 items: ['Simpanan Wajib', 'Simpanan Sukarela']
                     .map(
                       (String value) => DropdownMenuItem<String>(

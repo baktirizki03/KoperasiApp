@@ -147,7 +147,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _jenisKelaminValue,
+                initialValue: _jenisKelaminValue,
                 items: ['laki-laki', 'perempuan'].map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
@@ -185,7 +185,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _pendidikanValue,
+                initialValue: _pendidikanValue,
                 items: ['SD', 'SMP', 'SMA', 'D3', 'S1', 'S2', 'S3']
                     .map(
                       (val) => DropdownMenuItem(value: val, child: Text(val)),
@@ -199,7 +199,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _agamaValue,
+                initialValue: _agamaValue,
                 items:
                     [
                           'Islam',
@@ -220,7 +220,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _statusPernikahanValue,
+                initialValue: _statusPernikahanValue,
                 items: ['Belum Menikah', 'Menikah', 'Cerai Hidup', 'Cerai Mati']
                     .map(
                       (val) => DropdownMenuItem(value: val, child: Text(val)),

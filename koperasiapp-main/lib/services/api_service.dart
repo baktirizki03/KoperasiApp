@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   // --- Link API ---
   // Gunakan localhost untuk Desktop/Web, atau 10.0.2.2 untuk Emulator Android
-  // final String _baseUrl = "http://10.0.2.2:8000/api";
-  final String _baseUrl = "http://localhost:8000/api";
+  final String _baseUrl = "http://10.0.2.2:8000/api";
+  // final String _baseUrl = "http://localhost:8000/api";
 
   String get storageUrl => _baseUrl.replaceAll('/api', '/storage');
 
@@ -40,6 +40,28 @@ class ApiService {
           'Anda tidak memiliki akses untuk fitur ini (Forbidden).',
         );
       }
+
+      // Handle 422 Validation Errors
+      if (response.statusCode == 422 && body is Map<String, dynamic>) {
+        if (body.containsKey('errors')) {
+          final errors = body['errors'];
+          String errorMessage = body['message'] ?? 'Validasi gagal';
+          if (errors is Map) {
+            // Extract all error messages
+            final errorList = errors.values
+                .map((e) {
+                  if (e is List) return e.join(', ');
+                  return e.toString();
+                })
+                .join('\n');
+            errorMessage += ':\n$errorList';
+          } else {
+            errorMessage += ': $errors';
+          }
+          throw Exception(errorMessage);
+        }
+      }
+
       if (body is Map<String, dynamic> && body.containsKey('message')) {
         throw Exception(body['message']);
       }
@@ -50,53 +72,80 @@ class ApiService {
     }
   }
 
+  Future<dynamic> _safeCall(Future<dynamic> Function() call) async {
+    try {
+      return await call();
+    } catch (e) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
+        throw Exception('Tidak ada koneksi internet. Periksa jaringan Anda.');
+      }
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/login'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode(<String, String>{'email': email, 'password': password}),
-    );
-    return _handleResponse(response) as Map<String, dynamic>;
+    final response = await _safeCall(() async {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/login'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(<String, String>{
+          'email': email,
+          'password': password,
+        }),
+      );
+      return _handleResponse(response);
+    });
+    return response as Map<String, dynamic>;
   }
 
   Future<dynamic> get(String endpoint) async {
-    String token = await _getToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/$endpoint'),
-      headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
-    );
-    return _handleResponse(response);
+    return _safeCall(() async {
+      String token = await _getToken();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/$endpoint'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      return _handleResponse(response);
+    });
   }
 
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
-    String token = await _getToken();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/$endpoint'),
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(data),
-    );
-    return _handleResponse(response);
+    return _safeCall(() async {
+      String token = await _getToken();
+      final response = await http.post(
+        Uri.parse('$_baseUrl/$endpoint'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
+      return _handleResponse(response);
+    });
   }
 
   Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
-    String token = await _getToken();
-    final response = await http.put(
-      Uri.parse('$_baseUrl/$endpoint'),
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(data),
-    );
-    return _handleResponse(response);
+    return _safeCall(() async {
+      String token = await _getToken();
+      final response = await http.put(
+        Uri.parse('$_baseUrl/$endpoint'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
+      return _handleResponse(response);
+    });
   }
 
   Future<dynamic> delete(String endpoint) async {
@@ -139,8 +188,9 @@ class ApiService {
   Future<List<dynamic>> getPinjamanList(String status) async {
     final responseData = await get('pinjaman?status=$status');
     if (responseData is List) return responseData;
-    if (responseData is Map && responseData.containsKey('data'))
+    if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
+    }
     return [];
   }
 
@@ -160,8 +210,9 @@ class ApiService {
   Future<List<dynamic>> getSimpananPending() async {
     final responseData = await get('simpanan');
     if (responseData is List) return responseData;
-    if (responseData is Map && responseData.containsKey('data'))
+    if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
+    }
     return [];
   }
 
@@ -178,8 +229,9 @@ class ApiService {
       'simpanan',
     ); // Usually Karyawan can see all or use status query
     if (responseData is List) return responseData;
-    if (responseData is Map && responseData.containsKey('data'))
+    if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
+    }
     return [];
   }
 
@@ -188,8 +240,9 @@ class ApiService {
     // If not, this might need fallback to iterating loans or api/laporan-ketua/angsuran
     final responseData = await get('angsuran'); // Attempting standard endpoint
     if (responseData is List) return responseData;
-    if (responseData is Map && responseData.containsKey('data'))
+    if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
+    }
     return [];
   }
 
@@ -233,8 +286,9 @@ class ApiService {
   Future<List<dynamic>> getMySimpanan() async {
     final responseData = await get('my-simpanan');
     if (responseData is List) return responseData;
-    if (responseData is Map && responseData.containsKey('data'))
+    if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
+    }
     return [];
   }
 
@@ -286,8 +340,9 @@ class ApiService {
   Future<List<dynamic>> getMyPinjaman() async {
     final responseData = await get('my-pinjaman');
     if (responseData is List) return responseData;
-    if (responseData is Map && responseData.containsKey('data'))
+    if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
+    }
     return [];
   }
 
@@ -334,24 +389,27 @@ class ApiService {
   Future<List<dynamic>> getPinjamanKetua() async {
     final responseData = await get('laporan-ketua/pinjaman');
     if (responseData is List) return responseData;
-    if (responseData is Map && responseData.containsKey('data'))
+    if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
+    }
     return [];
   }
 
   Future<List<dynamic>> getSimpananKetua() async {
     final responseData = await get('laporan-ketua/simpanan');
     if (responseData is List) return responseData;
-    if (responseData is Map && responseData.containsKey('data'))
+    if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
+    }
     return [];
   }
 
   Future<List<dynamic>> getAngsuranKetua() async {
     final responseData = await get('laporan-ketua/angsuran');
     if (responseData is List) return responseData;
-    if (responseData is Map && responseData.containsKey('data'))
+    if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
+    }
     return [];
   }
 }

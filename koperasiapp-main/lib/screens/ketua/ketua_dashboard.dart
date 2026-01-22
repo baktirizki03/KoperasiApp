@@ -57,14 +57,14 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
     } catch (e) {
       // Jika error, kembalikan map kosong atau rethrow
       // Di sini kita rethrow agar FutureBuilder menangkap errornya
-      throw e;
+      rethrow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: Text(
           'Dashboard Ketua',

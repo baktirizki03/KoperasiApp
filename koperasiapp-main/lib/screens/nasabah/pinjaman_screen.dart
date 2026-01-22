@@ -44,7 +44,7 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: RefreshIndicator(
         onRefresh: () async => _loadData(),
         child: FutureBuilder<List<dynamic>>(
@@ -58,7 +58,11 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline_rounded, size: 60, color: Colors.grey),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 60,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Gagal memuat data',
@@ -73,7 +77,11 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.monetization_on_outlined, size: 80, color: Colors.grey[300]),
+                    Icon(
+                      Icons.monetization_on_outlined,
+                      size: 80,
+                      color: Colors.grey[300],
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Belum ada riwayat pinjaman.',
@@ -85,7 +93,11 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
             }
 
             final pinjamanList = snapshot.data!;
-            final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+            final formatter = NumberFormat.currency(
+              locale: 'id_ID',
+              symbol: 'Rp ',
+              decimalDigits: 0,
+            );
 
             return ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -114,11 +126,19 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
                         color: Colors.orange.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.receipt_long_rounded, color: Colors.orange),
+                      child: const Icon(
+                        Icons.receipt_long_rounded,
+                        color: Colors.orange,
+                      ),
                     ),
                     title: Text(
-                      formatter.format(double.parse(pinjaman['nominal'].toString())),
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+                      formatter.format(
+                        double.parse(pinjaman['nominal'].toString()),
+                      ),
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -128,9 +148,14 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
                       ),
                     ),
                     trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(pinjaman['status']).withOpacity(0.1),
+                        color: _getStatusColor(
+                          pinjaman['status'],
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -151,9 +176,9 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          final result = await Navigator.of(context).push(
-            MaterialPageRoute(builder: (ctx) => PinjamanFormScreen()),
-          );
+          final result = await Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (ctx) => PinjamanFormScreen()));
           if (result == true) {
             _loadData();
           }

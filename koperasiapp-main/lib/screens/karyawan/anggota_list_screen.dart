@@ -5,6 +5,8 @@ import '../../providers/auth_provider.dart';
 import 'anggota_form_screen.dart';
 
 class AnggotaListScreen extends StatefulWidget {
+  const AnggotaListScreen({super.key});
+
   @override
   _AnggotaListScreenState createState() => _AnggotaListScreenState();
 }
@@ -79,7 +81,7 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
   void _showKtpReadOnlyDialog(Map<String, dynamic> anggota) {
     String ktpUrl = anggota['ktp_path'] ?? '';
     if (!ktpUrl.startsWith('http')) {
-      ktpUrl = "http://localhost:8000/storage/" + ktpUrl;
+      ktpUrl = "http://localhost:8000/storage/$ktpUrl";
     }
 
     showDialog(
@@ -129,7 +131,7 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     if (!ktpUrl.startsWith('http')) {
       // Sesuaikan base URL dengan environment Anda.
       // Jika menggunakan emulator android: http://10.0.2.2:8000/storage/
-      ktpUrl = "http://localhost:8000/storage/" + ktpUrl;
+      ktpUrl = "http://localhost:8000/storage/$ktpUrl";
     }
 
     showDialog(
@@ -281,74 +283,83 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
           final isKetua = role == 'ketua';
           final isKaryawan = role == 'karyawan';
 
-          return ListView.builder(
-            itemCount: anggotas.length,
-            itemBuilder: (ctx, index) {
-              final anggota = anggotas[index];
-              return Card(
-                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  title: Text(anggota['nama_lengkap']),
-                  subtitle: Text(
-                    anggota['user']?['email'] ?? 'Email tidak tersedia',
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // KTP View Button (Read Only)
-                      if (anggota['ktp_path'] != null &&
-                          anggota['ktp_path'].toString().isNotEmpty)
-                        IconButton(
-                          icon: Icon(
-                            Icons.image_search,
-                            color: Colors.blueGrey,
+          return RefreshIndicator(
+            onRefresh: () async => _loadAnggota(),
+            child: ListView.builder(
+              itemCount: anggotas.length,
+              itemBuilder: (ctx, index) {
+                final anggota = anggotas[index];
+                return Card(
+                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    title: Text(anggota['nama_lengkap']),
+                    subtitle: Text(
+                      anggota['user']?['email'] ?? 'Email tidak tersedia',
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // KTP View Button (Read Only)
+                        if (anggota['ktp_path'] != null &&
+                            anggota['ktp_path'].toString().isNotEmpty)
+                          IconButton(
+                            icon: Icon(
+                              Icons.image_search,
+                              color: Colors.blueGrey,
+                            ),
+                            tooltip: 'Lihat Foto KTP',
+                            onPressed: () => _showKtpReadOnlyDialog(anggota),
                           ),
-                          tooltip: 'Lihat Foto KTP',
-                          onPressed: () => _showKtpReadOnlyDialog(anggota),
-                        ),
 
-                      SizedBox(width: 8),
+                        SizedBox(width: 8),
 
-                      // Status Verifikasi Icon
-                      if (anggota['is_ktp_verified'] == 1)
-                        Tooltip(
-                          message: 'Terverifikasi',
-                          child: Icon(Icons.check_circle, color: Colors.green),
-                        )
-                      else if (anggota['ktp_path'] != null &&
-                          anggota['ktp_path'].toString().isNotEmpty)
-                        IconButton(
-                          icon: Icon(Icons.hourglass_top, color: Colors.orange),
-                          tooltip: 'Menunggu Verifikasi (Lihat KTP)',
-                          onPressed: () => _showVerificationDialog(anggota),
-                        )
-                      else
-                        Tooltip(
-                          message: 'Belum Upload KTP',
-                          child: Icon(Icons.cancel, color: Colors.grey),
-                        ),
-                      SizedBox(width: 8),
+                        // Status Verifikasi Icon
+                        if (anggota['is_ktp_verified'] == 1)
+                          Tooltip(
+                            message: 'Terverifikasi',
+                            child: Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                            ),
+                          )
+                        else if (anggota['ktp_path'] != null &&
+                            anggota['ktp_path'].toString().isNotEmpty)
+                          IconButton(
+                            icon: Icon(
+                              Icons.hourglass_top,
+                              color: Colors.orange,
+                            ),
+                            tooltip: 'Menunggu Verifikasi (Lihat KTP)',
+                            onPressed: () => _showVerificationDialog(anggota),
+                          )
+                        else
+                          Tooltip(
+                            message: 'Belum Upload KTP',
+                            child: Icon(Icons.cancel, color: Colors.grey),
+                          ),
+                        SizedBox(width: 8),
 
-                      // Edit Button (Karyawan & Ketua)
-                      if (isKaryawan || isKetua)
-                        IconButton(
-                          icon: Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _navigateToForm(anggota: anggota),
-                          tooltip: 'Edit Anggota',
-                        ),
+                        // Edit Button (Karyawan & Ketua)
+                        if (isKaryawan || isKetua)
+                          IconButton(
+                            icon: Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () => _navigateToForm(anggota: anggota),
+                            tooltip: 'Edit Anggota',
+                          ),
 
-                      // Delete Button (Only Ketua)
-                      if (isKetua)
-                        IconButton(
-                          icon: Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteAnggota(anggota['id']),
-                          tooltip: 'Hapus Anggota',
-                        ),
-                    ],
+                        // Delete Button (Only Ketua)
+                        if (isKetua)
+                          IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteAnggota(anggota['id']),
+                            tooltip: 'Hapus Anggota',
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),
@@ -356,8 +367,8 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
           (Provider.of<AuthProvider>(context).role == 'karyawan')
           ? FloatingActionButton(
               onPressed: () => _navigateToForm(),
-              child: Icon(Icons.add),
               tooltip: 'Tambah Anggota',
+              child: Icon(Icons.add),
             )
           : null,
     );

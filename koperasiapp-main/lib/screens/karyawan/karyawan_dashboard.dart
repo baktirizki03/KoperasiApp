@@ -8,10 +8,12 @@ import 'pinjaman_list_screen.dart';
 import 'simpanan_verifikasi_screen.dart';
 
 class KaryawanDashboard extends StatelessWidget {
+  const KaryawanDashboard({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: Text(
           'Dashboard Karyawan',

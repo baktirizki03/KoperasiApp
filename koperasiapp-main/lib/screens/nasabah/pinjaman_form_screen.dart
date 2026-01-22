@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:cross_file/cross_file.dart';
 
 class PinjamanFormScreen extends StatefulWidget {
   const PinjamanFormScreen({super.key});
@@ -31,6 +30,7 @@ class _PinjamanFormScreenState extends State<PinjamanFormScreen> {
   XFile? _slipGajiFile;
   XFile? _kkFile;
   XFile? _idKaryawanFile;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -46,19 +46,19 @@ class _PinjamanFormScreenState extends State<PinjamanFormScreen> {
   }
 
   Future<void> _pickFile(String type) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'pdf', 'png', 'jpeg'],
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50, // Compress image to 50% quality
     );
 
-    if (result != null) {
+    if (image != null) {
       setState(() {
         if (type == 'slip_gaji') {
-          _slipGajiFile = result.xFiles.single;
+          _slipGajiFile = image;
         } else if (type == 'kk') {
-          _kkFile = result.xFiles.single;
+          _kkFile = image;
         } else if (type == 'id_karyawan') {
-          _idKaryawanFile = result.xFiles.single;
+          _idKaryawanFile = image;
         }
       });
     }
@@ -236,7 +236,7 @@ class _PinjamanFormScreenState extends State<PinjamanFormScreen> {
                 formatters: [FilteringTextInputFormatter.digitsOnly],
               ),
               DropdownButtonFormField<String>(
-                value: _tenorValue,
+                initialValue: _tenorValue,
                 decoration: const InputDecoration(
                   labelText: 'Tenor (Bulan)',
                   border: OutlineInputBorder(),

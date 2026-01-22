@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
-import 'pinjaman_detail_screen.dart'; 
+import 'pinjaman_detail_screen.dart';
 
 class PinjamanListScreen extends StatefulWidget {
+  const PinjamanListScreen({super.key});
+
   @override
   _PinjamanListScreenState createState() => _PinjamanListScreenState();
 }
@@ -67,37 +69,42 @@ class _PinjamanListScreenState extends State<PinjamanListScreen>
         }
 
         final pinjamanList = snapshot.data!;
-        return ListView.builder(
-          itemCount: pinjamanList.length,
-          itemBuilder: (ctx, index) {
-            final pinjaman = pinjamanList[index];
-            final anggota = pinjaman['anggota'];
-            return Card(
-              margin: EdgeInsets.all(8.0),
-              child: ListTile(
-                title: Text(
-                  anggota != null
-                      ? anggota['nama_lengkap']
-                      : 'Nama tidak tersedia',
-                ),
-                subtitle: Text(
-                  'Nominal: Rp ${pinjaman['nominal']} \nTenor: ${pinjaman['tenor_cicilan']} bulan',
-                ),
-                isThreeLine: true,
-                onTap: () async {
-                  final result = await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (ctx) =>
-                          PinjamanDetailScreen(pinjamanId: pinjaman['id']),
-                    ),
-                  );
-                  if (result == true) {
-                    setState(() {}); 
-                  }
-                },
-              ),
-            );
+        return RefreshIndicator(
+          onRefresh: () async {
+            setState(() {});
           },
+          child: ListView.builder(
+            itemCount: pinjamanList.length,
+            itemBuilder: (ctx, index) {
+              final pinjaman = pinjamanList[index];
+              final anggota = pinjaman['anggota'];
+              return Card(
+                margin: EdgeInsets.all(8.0),
+                child: ListTile(
+                  title: Text(
+                    anggota != null
+                        ? anggota['nama_lengkap']
+                        : 'Nama tidak tersedia',
+                  ),
+                  subtitle: Text(
+                    'Nominal: Rp ${pinjaman['nominal']} \nTenor: ${pinjaman['tenor_cicilan']} bulan',
+                  ),
+                  isThreeLine: true,
+                  onTap: () async {
+                    final result = await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) =>
+                            PinjamanDetailScreen(pinjamanId: pinjaman['id']),
+                      ),
+                    );
+                    if (result == true) {
+                      setState(() {});
+                    }
+                  },
+                ),
+              );
+            },
+          ),
         );
       },
     );

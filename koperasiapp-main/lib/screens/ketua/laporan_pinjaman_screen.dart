@@ -123,7 +123,7 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
                           ],
                         ),
                         child: DataTable(
-                          headingRowColor: MaterialStateProperty.all(
+                          headingRowColor: WidgetStateProperty.all(
                             Theme.of(
                               context,
                             ).colorScheme.primary.withOpacity(0.1),
@@ -204,7 +204,7 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
               Expanded(
                 flex: 2,
                 child: DropdownButtonFormField<String>(
-                  value: _selectedStatus,
+                  initialValue: _selectedStatus,
                   decoration: const InputDecoration(
                     labelText: 'Filter Status',
                     border: OutlineInputBorder(),

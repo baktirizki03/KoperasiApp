@@ -4,7 +4,7 @@ import '../../services/api_service.dart';
 class AnggotaFormScreen extends StatefulWidget {
   final Map<String, dynamic>? anggota;
 
-  AnggotaFormScreen({this.anggota});
+  const AnggotaFormScreen({super.key, this.anggota});
 
   @override
   _AnggotaFormScreenState createState() => _AnggotaFormScreenState();
@@ -218,7 +218,7 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
                 ],
               ),
               DropdownButtonFormField<String>(
-                value: _jenisKelaminValue,
+                initialValue: _jenisKelaminValue,
                 decoration: InputDecoration(labelText: 'Jenis Kelamin'),
                 items: _jenisKelaminOptions.map((String value) {
                   return DropdownMenuItem<String>(
@@ -261,7 +261,7 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
 
               SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                value: _pendidikanValue,
+                initialValue: _pendidikanValue,
                 decoration: InputDecoration(labelText: 'Pendidikan'),
                 items: _pendidikanOptions.map((String value) {
                   return DropdownMenuItem<String>(
@@ -275,7 +275,7 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
                     (value == null) ? 'Pilih pendidikan' : null,
               ),
               DropdownButtonFormField<String>(
-                value: _agamaValue,
+                initialValue: _agamaValue,
                 decoration: InputDecoration(labelText: 'Agama'),
                 items: _agamaOptions.map((String value) {
                   return DropdownMenuItem<String>(
@@ -287,7 +287,7 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
                 validator: (value) => (value == null) ? 'Pilih agama' : null,
               ),
               DropdownButtonFormField<String>(
-                value: _statusPernikahanValue,
+                initialValue: _statusPernikahanValue,
                 decoration: InputDecoration(labelText: 'Status Pernikahan'),
                 items: _statusPernikahanOptions.map((String value) {
                   return DropdownMenuItem<String>(
