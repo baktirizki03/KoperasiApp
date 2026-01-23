@@ -126,7 +126,7 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
             _tanggalLahirController.text, // Pastikan format YYYY-MM-DD
         'jenis_kelamin': _jenisKelaminValue!,
         'no_ktp': _noKtpController.text,
-        'alamat': _alamatController.text,
+        'domisili': _alamatController.text,
         'no_telepon': _teleponController.text,
         'pekerjaan': _pekerjaanController.text,
         'pendidikan': _pendidikanValue!,

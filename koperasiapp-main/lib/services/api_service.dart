@@ -31,6 +31,14 @@ class ApiService {
       return body;
     } else {
       if (response.statusCode == 401) {
+        if (body is Map && body.containsKey('message')) {
+          final serverMessage = body['message'];
+          // Jika pesan bukan generic "Unauthenticated", tampilkan pesan dari server
+          // (misal: "Email atau Password salah")
+          if (serverMessage != 'Unauthenticated.') {
+            throw Exception(serverMessage);
+          }
+        }
         throw Exception(
           'Sesi berakhir atau tidak valid (Unauthorized). Silakan login ulang.',
         );
@@ -43,20 +51,31 @@ class ApiService {
 
       // Handle 422 Validation Errors
       if (response.statusCode == 422 && body is Map<String, dynamic>) {
+        Map<String, dynamic> errors = {};
         if (body.containsKey('errors')) {
-          final errors = body['errors'];
+          errors = body['errors'];
+        } else {
+          // Asumsi body langsung berisi map error (Laravel default validator response)
+          errors = body;
+        }
+
+        if (errors.isNotEmpty) {
           String errorMessage = body['message'] ?? 'Validasi gagal';
-          if (errors is Map) {
-            // Extract all error messages
-            final errorList = errors.values
-                .map((e) {
-                  if (e is List) return e.join(', ');
-                  return e.toString();
-                })
-                .join('\n');
+          // Jika tidak ada pesan spesifik di root, reset default message agar tidak redundan
+          if (!body.containsKey('message')) {
+            errorMessage = 'Validasi gagal';
+          }
+
+          final errorList = errors.values
+              .map((e) {
+                if (e is List) return e.join(', ');
+                return e.toString();
+              })
+              .where((s) => s.isNotEmpty) // Filter string kosong
+              .join('\n');
+
+          if (errorList.isNotEmpty) {
             errorMessage += ':\n$errorList';
-          } else {
-            errorMessage += ': $errors';
           }
           throw Exception(errorMessage);
         }
@@ -387,7 +406,7 @@ class ApiService {
   }
 
   Future<List<dynamic>> getPinjamanKetua() async {
-    final responseData = await get('laporan-ketua/pinjaman');
+    final responseData = await get('laporan/pinjaman');
     if (responseData is List) return responseData;
     if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
@@ -396,7 +415,7 @@ class ApiService {
   }
 
   Future<List<dynamic>> getSimpananKetua() async {
-    final responseData = await get('laporan-ketua/simpanan');
+    final responseData = await get('laporan/simpanan');
     if (responseData is List) return responseData;
     if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
@@ -405,7 +424,7 @@ class ApiService {
   }
 
   Future<List<dynamic>> getAngsuranKetua() async {
-    final responseData = await get('laporan-ketua/angsuran');
+    final responseData = await get('laporan/angsuran');
     if (responseData is List) return responseData;
     if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;

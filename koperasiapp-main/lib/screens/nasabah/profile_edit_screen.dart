@@ -47,7 +47,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
     // Use 'alamat' if available, fallback to 'domisili' to maintain backward compat during transition
     _alamatController = TextEditingController(
-      text: widget.anggota['alamat'] ?? widget.anggota['domisili'],
+      text: widget.anggota['domisili'] ?? widget.anggota['alamat'],
     );
     _teleponController = TextEditingController(
       text: widget.anggota['no_telepon'],
@@ -76,7 +76,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           'tempat_lahir': _tempatLahirController.text,
           'tanggal_lahir': _tanggalLahirController.text,
           'jenis_kelamin': _jenisKelaminValue!,
-          'alamat': _alamatController.text,
+          'domisili': _alamatController.text,
           'no_telepon': _teleponController.text,
 
           'no_ktp': _noKtpController.text,
