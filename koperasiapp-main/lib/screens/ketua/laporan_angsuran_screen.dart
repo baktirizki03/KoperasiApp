@@ -99,108 +99,181 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
               children: [
                 _buildFilterHeader(),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: DataTable(
-                          headingRowColor: WidgetStateProperty.all(
-                            Theme.of(
-                              context,
-                            ).colorScheme.primary.withOpacity(0.1),
-                          ),
-                          border: TableBorder.all(
-                            color: Colors.grey.withOpacity(0.2),
-                            width: 1,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          columns: [
-                            DataColumn(label: _buildColumnHeader('No')),
-                            DataColumn(
-                              label: _buildColumnHeader('No. Anggota'),
-                            ),
-                            DataColumn(
-                              label: _buildColumnHeader('Nama Anggota'),
-                            ),
-                            DataColumn(
-                              label: _buildColumnHeader('Pinjaman Ke'),
-                            ),
-                            DataColumn(
-                              label: _buildColumnHeader('Angsuran Ke'),
-                            ),
-                            DataColumn(label: _buildColumnHeader('Nominal')),
-                            DataColumn(label: _buildColumnHeader('Denda')),
-                            DataColumn(
-                              label: _buildColumnHeader('Jatuh Tempo'),
-                            ),
-                            DataColumn(label: _buildColumnHeader('Status')),
-                          ],
-                          rows: List<DataRow>.generate(_filteredData.length, (
-                            index,
-                          ) {
-                            final item = _filteredData[index];
-                            final anggota = item['anggota'] ?? {};
-                            final pinjaman = item['pinjaman'] ?? {};
+                  child: _filteredData.isEmpty
+                      ? const Center(child: Text('Data tidak ditemukan'))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _filteredData.length,
+                          itemBuilder: (context, index) {
+                            final pinjaman = _filteredData[index];
+                            final anggota = pinjaman['anggota'] ?? {};
+                            final angsurans =
+                                pinjaman['angsurans'] as List? ?? [];
 
-                            return DataRow(
-                              cells: [
-                                DataCell(Text('${index + 1}')),
-                                DataCell(Text(anggota['nomor_anggota'] ?? '-')),
-                                DataCell(Text(anggota['nama_lengkap'] ?? '-')),
-                                DataCell(Text(pinjaman['id'].toString())),
-                                DataCell(Text(item['angsuran_ke'].toString())),
-                                DataCell(
-                                  Text(
-                                    NumberFormat.currency(
-                                      locale: 'id_ID',
-                                      symbol: 'Rp ',
-                                      decimalDigits: 0,
-                                    ).format(
-                                      int.tryParse(
-                                            item['jumlah_angsuran'].toString(),
-                                          ) ??
-                                          0,
-                                    ),
+                            // Hitung progress
+                            final totalAngsuran = angsurans.length;
+                            final lunasCount = angsurans
+                                .where((a) => a['status'] == 'lunas')
+                                .length;
+                            final progress = totalAngsuran > 0
+                                ? lunasCount / totalAngsuran
+                                : 0.0;
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.all(16),
+                                onTap: () =>
+                                    _showAngsuranDetail(pinjaman, angsurans),
+                                title: Text(
+                                  anggota['nama_lengkap'] ??
+                                      'Nama Tidak Diketahui',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
                                 ),
-                                DataCell(
-                                  Text(
-                                    NumberFormat.currency(
-                                      locale: 'id_ID',
-                                      symbol: 'Rp ',
-                                      decimalDigits: 0,
-                                    ).format(
-                                      int.tryParse(item['denda'].toString()) ??
-                                          0,
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No. Anggota: ${anggota['nomor_anggota'] ?? '-'}',
                                     ),
-                                  ),
+                                    Text(
+                                      'Total Pinjaman: ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(int.tryParse((pinjaman['nominal'] ?? '0').toString().split('.')[0]) ?? 0)}',
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: LinearProgressIndicator(
+                                            value: progress,
+                                            backgroundColor: Colors.grey[200],
+                                            color: progress == 1.0
+                                                ? Colors.green
+                                                : Colors.blue,
+                                            minHeight: 8,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          '$lunasCount/$totalAngsuran Bulan',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                                DataCell(
-                                  Text(item['tanggal_jatuh_tempo'] ?? '-'),
-                                ),
-                                DataCell(_buildStatusBadge(item['status'])),
-                              ],
+                                trailing: const Icon(Icons.chevron_right),
+                              ),
                             );
-                          }),
+                          },
                         ),
-                      ),
-                    ),
-                  ),
                 ),
               ],
             ),
+    );
+  }
+
+  void _showAngsuranDetail(
+    Map<String, dynamic> pinjaman,
+    List<dynamic> angsurans,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Detail Angsuran',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    itemCount: angsurans.length,
+                    separatorBuilder: (context, index) => const Divider(),
+                    itemBuilder: (context, index) {
+                      final item = angsurans[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.1),
+                          child: Text('${item['angsuran_ke']}'),
+                        ),
+                        title: Text(
+                          NumberFormat.currency(
+                            locale: 'id_ID',
+                            symbol: 'Rp ',
+                            decimalDigits: 0,
+                          ).format(
+                            int.tryParse(
+                                  (item['jumlah_angsuran'] ?? '0')
+                                      .toString()
+                                      .split('.')[0],
+                                ) ??
+                                0,
+                          ),
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Jatuh Tempo: ${item['tanggal_jatuh_tempo']}',
+                          style: GoogleFonts.poppins(fontSize: 12),
+                        ),
+                        trailing: _buildStatusBadge(item['status']),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -213,47 +286,16 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
           const SizedBox(height: 10),
           Row(
             children: [
-              // Filter Dropdown
               Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _selectedStatus,
-                  decoration: const InputDecoration(
-                    labelText: 'Filter Status',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  items: ['Semua', 'Belum Lunas', 'Lunas', 'Jatuh Tempo']
-                      .map(
-                        (status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _selectedStatus = val;
-                        _filterData();
-                      });
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Search Bar
-              Expanded(
-                flex: 3,
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    labelText: 'Cari',
-                    hintText: 'Nama / No Anggota',
+                    labelText: 'Cari Anggota',
                     prefixIcon: const Icon(Icons.search),
-                    border: const OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                   onChanged: (val) => _filterData(),
                 ),
@@ -278,14 +320,16 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
   Widget _buildStatusBadge(String? status) {
     Color color;
     switch (status?.toLowerCase()) {
-      case 'belum lunas':
+      case 'belum_lunas':
+      case 'belum bayar':
         color = Colors.orange;
         break;
       case 'lunas':
+      case 'disetujui':
         color = Colors.green;
         break;
-      case 'jatuh tempo':
-        color = Colors.red;
+      case 'menunggu_konfirmasi':
+        color = Colors.blue;
         break;
       default:
         color = Colors.grey;
@@ -299,10 +343,10 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
         border: Border.all(color: color),
       ),
       child: Text(
-        (status ?? '-').toUpperCase(),
+        (status ?? '-').replaceAll('_', ' ').toUpperCase(),
         style: GoogleFonts.poppins(
           color: color,
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.w600,
         ),
       ),

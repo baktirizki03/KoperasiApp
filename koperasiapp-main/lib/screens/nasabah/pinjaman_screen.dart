@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import 'pinjaman_form_screen.dart';
+import 'pinjaman_detail_screen.dart';
 
 class PinjamanScreen extends StatefulWidget {
   const PinjamanScreen({super.key});
@@ -118,52 +119,64 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
                       ),
                     ],
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        shape: BoxShape.circle,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NasabahPinjamanDetailScreen(
+                            pinjamanId: pinjaman['id'],
+                          ),
+                        ),
+                      );
+                    },
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(16),
+                      leading: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.receipt_long_rounded,
+                          color: Colors.orange,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.receipt_long_rounded,
-                        color: Colors.orange,
-                      ),
-                    ),
-                    title: Text(
-                      formatter.format(
-                        double.parse(pinjaman['nominal'].toString()),
-                      ),
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        'Tenor: ${pinjaman['tenor_cicilan']} bulan',
-                        style: GoogleFonts.poppins(color: Colors.grey[600]),
-                      ),
-                    ),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(
-                          pinjaman['status'],
-                        ).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        pinjaman['status'].toUpperCase(),
+                      title: Text(
+                        formatter.format(
+                          double.parse(pinjaman['nominal'].toString()),
+                        ),
                         style: GoogleFonts.poppins(
-                          color: _getStatusColor(pinjaman['status']),
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                          fontSize: 16,
+                        ),
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Tenor: ${pinjaman['tenor_cicilan']} bulan',
+                          style: GoogleFonts.poppins(color: Colors.grey[600]),
+                        ),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(
+                            pinjaman['status'],
+                          ).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          pinjaman['status'].toUpperCase(),
+                          style: GoogleFonts.poppins(
+                            color: _getStatusColor(pinjaman['status']),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ),

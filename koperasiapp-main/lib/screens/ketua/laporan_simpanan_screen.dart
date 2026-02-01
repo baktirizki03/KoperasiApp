@@ -145,6 +145,9 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
                             ),
                             DataColumn(label: _buildColumnHeader('Nominal')),
                             DataColumn(label: _buildColumnHeader('Tanggal')),
+                            DataColumn(
+                              label: _buildColumnHeader('Diverifikasi Oleh'),
+                            ),
                             DataColumn(label: _buildColumnHeader('Status')),
                           ],
                           rows: List<DataRow>.generate(_filteredData.length, (
@@ -174,6 +177,16 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
                                   ),
                                 ),
                                 DataCell(Text(item['tanggal'] ?? '-')),
+                                DataCell(
+                                  Text(
+                                    (item['acc_by'] is Map &&
+                                            item['acc_by']['name'] != null)
+                                        ? '${item['acc_by']['name']} (${item['acc_by']['role'] ?? '-'})'
+                                        : (item['acc_by'] != null
+                                              ? 'ID: ${item['acc_by']}'
+                                              : '-'),
+                                  ),
+                                ),
                                 DataCell(_buildStatusBadge(item['status'])),
                               ],
                             );

@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:koperasiapp/screens/nasabah/profile_edit_screen.dart';
+import '../common/change_password_screen.dart';
 import '../../services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -197,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildProfileItem(
                   Icons.badge_outlined,
                   'No. KTP / SIM',
-                  anggota?['no_ktp'] ?? 'Tidak tersedia',
+                  anggota?['nomor_ktp'] ?? 'Tidak tersedia',
                   7,
                 ),
                 _buildProfileItem(
@@ -244,22 +245,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  ProfileEditScreen(anggota: _anggotaData ?? {}),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'change_password',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ChangePasswordScreen(),
+                ),
+              );
+            },
+            label: Text(
+              'Ganti Password',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
             ),
-          ).then((_) => _loadProfile());
-        },
-        label: Text(
-          'Edit Profil',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-        ),
-        icon: const Icon(Icons.edit_rounded),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+            icon: const Icon(Icons.lock_reset),
+            backgroundColor: Colors.orange,
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            heroTag: 'edit_profile',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ProfileEditScreen(anggota: _anggotaData ?? {}),
+                ),
+              ).then((_) => _loadProfile());
+            },
+            label: Text(
+              'Edit Profil',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+            icon: const Icon(Icons.edit_rounded),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
+        ],
       ),
     );
   }

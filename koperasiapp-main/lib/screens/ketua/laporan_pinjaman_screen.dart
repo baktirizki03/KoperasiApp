@@ -146,6 +146,9 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
                               label: _buildColumnHeader('Jumlah Pinjaman'),
                             ),
                             DataColumn(label: _buildColumnHeader('Tenor')),
+                            DataColumn(
+                              label: _buildColumnHeader('Diverifikasi Oleh'),
+                            ),
                             DataColumn(label: _buildColumnHeader('Status')),
                           ],
                           rows: List<DataRow>.generate(_filteredData.length, (
@@ -176,6 +179,16 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
                                 ),
                                 DataCell(
                                   Text('${item['tenor_cicilan']} Bulan'),
+                                ),
+                                DataCell(
+                                  Text(
+                                    (item['acc_by'] is Map &&
+                                            item['acc_by']['name'] != null)
+                                        ? '${item['acc_by']['name']} (${item['acc_by']['role'] ?? '-'})'
+                                        : (item['acc_by'] != null
+                                              ? 'ID: ${item['acc_by']}'
+                                              : '-'),
+                                  ),
                                 ),
                                 DataCell(_buildStatusBadge(item['status'])),
                               ],

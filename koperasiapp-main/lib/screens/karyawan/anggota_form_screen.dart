@@ -79,7 +79,7 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
     _jenisKelaminValue = data['jenis_kelamin'];
 
     // Check if keys exist in incoming data, otherwise empty
-    _noKtpController = TextEditingController(text: data['no_ktp'] ?? '');
+    _noKtpController = TextEditingController(text: data['nomor_ktp'] ?? '');
     _alamatController = TextEditingController(
       text: data['alamat'] ?? data['domisili'] ?? '',
     );
@@ -125,7 +125,7 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
         'tanggal_lahir':
             _tanggalLahirController.text, // Pastikan format YYYY-MM-DD
         'jenis_kelamin': _jenisKelaminValue!,
-        'no_ktp': _noKtpController.text,
+        'nomor_ktp': _noKtpController.text,
         'domisili': _alamatController.text,
         'no_telepon': _teleponController.text,
         'pekerjaan': _pekerjaanController.text,

@@ -36,7 +36,7 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      _loadData(); 
+      _loadData();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -45,6 +45,67 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
         ),
       );
     }
+  }
+
+  void _showImage(String path, String title) {
+    final imageUrl = '${_apiService.storageUrl}/$path';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: InteractiveViewer(
+                child: Image.network(
+                  imageUrl,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const SizedBox(
+                      height: 200,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => const SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.broken_image,
+                            size: 50,
+                            color: Colors.grey,
+                          ),
+                          Text('Gagal memuat gambar'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showDetailDialog(Map<String, dynamic> simpanan) {
@@ -66,7 +127,34 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
               Text('Jenis Transaksi: ${simpanan['jenis_transaksi'] ?? 'N/A'}'),
               Text('Tanggal: ${simpanan['tanggal'] ?? 'N/A'}'),
               const SizedBox(height: 16),
-              const Text('Bukti transfer akan ditampilkan di sini.'),
+              const Text(
+                'Bukti Transfer:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (simpanan['bukti_transfer_path'] != null)
+                InkWell(
+                  onTap: () => _showImage(
+                    simpanan['bukti_transfer_path'],
+                    'Bukti Transfer',
+                  ),
+                  child: Container(
+                    height: 150,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                      image: DecorationImage(
+                        image: NetworkImage(
+                          '${_apiService.storageUrl}/${simpanan['bukti_transfer_path']}',
+                        ),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                const Text('Tidak ada bukti transfer.'),
             ],
           ),
         ),

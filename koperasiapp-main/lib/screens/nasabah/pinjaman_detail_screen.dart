@@ -44,19 +44,23 @@ class _NasabahPinjamanDetailScreenState
       final bytes = await image.readAsBytes();
       await _apiService.confirmAngsuran(angsuranId, bytes, image.name);
 
-      ScaffoldMessenger.of(context).removeCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Konfirmasi terkirim!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _loadDetail();
+      if (mounted) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Konfirmasi terkirim!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadDetail();
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).removeCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -75,7 +79,7 @@ class _NasabahPinjamanDetailScreenState
           }
 
           final pinjaman = snapshot.data!;
-          final angsurans = pinjaman['angsurans'] as List;
+          // final angsurans = pinjaman['angsurans'] as List;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(8.0),
@@ -89,6 +93,36 @@ class _NasabahPinjamanDetailScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Status: ${pinjaman['status'].toUpperCase()}'),
+                        if (pinjaman['status'] == 'ditolak' &&
+                            pinjaman['alasan_penolakan'] != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.red[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Alasan Penolakan:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  pinjaman['alasan_penolakan'],
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const Divider(),
                         Text(
                           'Keperluan: ${pinjaman['untuk_keperluan'] ?? '-'}',
@@ -111,50 +145,106 @@ class _NasabahPinjamanDetailScreenState
                     ),
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'Jadwal Angsuran',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                ),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: angsurans.length,
-                  itemBuilder: (ctx, index) {
-                    final angsuran = angsurans[index];
-                    final status = angsuran['status'];
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          child: Text('${angsuran['angsuran_ke']}'),
-                        ),
-                        title: Text('Rp ${angsuran['jumlah_bayar']}'),
-                        subtitle: Text(
-                          'Jatuh Tempo: ${angsuran['tanggal_jatuh_tempo']}',
-                        ),
-                        trailing: (status == 'belum_lunas')
-                            ? ElevatedButton(
-                                onPressed: () =>
-                                    _konfirmasiBayar(angsuran['id']),
-                                child: const Text('Bayar'),
-                              )
-                            : Chip(
-                                label: Text(status.toUpperCase()),
-                                backgroundColor: status == 'lunas'
-                                    ? Colors.green
-                                    : Colors.orange,
-                              ),
+                if (pinjaman['angsurans'] != null) ...[
+                  const SizedBox(height: 20),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4.0),
+                    child: Text(
+                      'Jadwal Angsuran',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildAngsuranList(pinjaman['angsurans'] as List),
+                ],
               ],
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildAngsuranList(List<dynamic> angsurans) {
+    if (angsurans.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Text('Belum ada data angsuran.'),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: angsurans.length,
+      itemBuilder: (context, index) {
+        final angsuran = angsurans[index];
+        final isPaid = angsuran['status'] == 'lunas';
+        final isPending = angsuran['status'] == 'menunggu_konfirmasi';
+
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: isPaid
+                  ? Colors.green
+                  : isPending
+                  ? Colors.orange
+                  : Colors.red,
+              child: Icon(
+                isPaid
+                    ? Icons.check
+                    : isPending
+                    ? Icons.hourglass_top
+                    : Icons.close,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            title: Text('Angsuran ke-${angsuran['angsuran_ke']}'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Jatuh Tempo: ${angsuran['tanggal_jatuh_tempo']}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                Text(
+                  'Nominal: Rp ${angsuran['jumlah_bayar']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            trailing: isPaid
+                ? const Text(
+                    'LUNAS',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : isPending
+                ? const Text(
+                    'DIPROSES',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : ElevatedButton(
+                    onPressed: () => _konfirmasiBayar(angsuran['id']),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      minimumSize: const Size(60, 30),
+                    ),
+                    child: const Text('Bayar'),
+                  ),
+          ),
+        );
+      },
     );
   }
 }

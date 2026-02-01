@@ -37,8 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _userName = profile['nama_lengkap'] ?? 'Nasabah';
         });
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   @override
@@ -249,6 +248,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildRiwayatList(List items, {required bool isAngsuran}) {
+    // Note: isAngsuran sebenarnya merepresentasikan isPinjaman sekarang
     if (items.isEmpty) {
       return Center(
         child: Column(
@@ -276,6 +276,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       itemCount: items.length,
       itemBuilder: (ctx, index) {
         final item = items[index];
+
+        // Cek status untuk warna badge
+        String status = item['status'] ?? '-';
+        Color statusColor = Colors.orange;
+        if (status == 'disetujui' || status == 'lunas')
+          statusColor = Colors.green;
+        if (status == 'ditolak') statusColor = Colors.red;
+
         return Container(
           margin: const EdgeInsets.only(bottom: 15),
           decoration: BoxDecoration(
@@ -309,22 +317,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             title: Text(
+              // Jika ini Pinjaman (isAngsuran context), tampilkan 'Pengajuan Pinjaman'
+              // Jika Simpanan, tampilkan tipe simpanan
               isAngsuran
-                  ? 'Angsuran ke-${item['angsuran_ke']}'
-                  : item['jenis_transaksi'],
+                  ? 'Pengajuan Pinjaman'
+                  : (item['jenis_transaksi'] ?? 'Simpanan'),
               style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
             ),
-            subtitle: Text(
-              isAngsuran ? '${item['tanggal_bayar']}' : '${item['tanggal']}',
-              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isAngsuran
+                      ? 'Tenor: ${item['tenor_cicilan']} Bulan'
+                      : '${item['tanggal'] ?? '-'}',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+                Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
             trailing: Text(
               formatter.format(
-                double.parse(
-                  isAngsuran
-                      ? item['jumlah_bayar'].toString()
-                      : item['nominal'].toString(),
-                ),
+                double.tryParse(item['nominal'].toString()) ?? 0,
               ),
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.bold,

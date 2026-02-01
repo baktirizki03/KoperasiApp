@@ -12,6 +12,7 @@ import '../karyawan/anggota_list_screen.dart';
 import 'laporan_pinjaman_screen.dart';
 import 'laporan_simpanan_screen.dart';
 import 'laporan_angsuran_screen.dart';
+import 'bunga_setting_list_screen.dart';
 
 class KetuaDashboard extends StatefulWidget {
   const KetuaDashboard({super.key});
@@ -156,6 +157,19 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
                   context,
                   MaterialPageRoute(
                     builder: (c) => const LaporanAngsuranScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.percent, color: Colors.green),
+              title: const Text('Pengaturan Bunga'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (c) => const BungaSettingListScreen(),
                   ),
                 );
               },

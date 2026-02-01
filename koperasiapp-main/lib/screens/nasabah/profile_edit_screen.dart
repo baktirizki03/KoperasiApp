@@ -53,7 +53,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       text: widget.anggota['no_telepon'],
     );
 
-    _noKtpController = TextEditingController(text: widget.anggota['no_ktp']);
+    _noKtpController = TextEditingController(text: widget.anggota['nomor_ktp']);
     _pekerjaanController = TextEditingController(
       text: widget.anggota['pekerjaan'],
     );
@@ -79,7 +79,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           'domisili': _alamatController.text,
           'no_telepon': _teleponController.text,
 
-          'no_ktp': _noKtpController.text,
+          'nomor_ktp': _noKtpController.text,
           'pekerjaan': _pekerjaanController.text,
           'pendidikan': _pendidikanValue ?? '',
           'agama': _agamaValue ?? '',

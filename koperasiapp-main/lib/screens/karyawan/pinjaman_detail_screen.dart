@@ -172,6 +172,28 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
     }
   }
 
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(label, style: const TextStyle(color: Colors.grey)),
+          ),
+          const Text(': '),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showImage(String path, String title) {
     // Gunakan storageUrl dari ApiService
     final imageUrl = '${_apiService.storageUrl}/$path';
@@ -268,6 +290,53 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(anggota['user']['email']),
+                const SizedBox(height: 16),
+                Card(
+                  elevation: 2,
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Data Pribadi Anggota',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const Divider(),
+                        _buildDetailRow('No. KTP', anggota['nomor_ktp'] ?? '-'),
+                        _buildDetailRow(
+                          'No. Telepon',
+                          anggota['no_telepon'] ?? '-',
+                        ),
+                        _buildDetailRow(
+                          'TTL',
+                          '${anggota['tempat_lahir'] ?? '-'}, ${anggota['tanggal_lahir'] ?? '-'}',
+                        ),
+                        _buildDetailRow(
+                          'Jenis Kelamin',
+                          anggota['jenis_kelamin'] ?? '-',
+                        ),
+                        _buildDetailRow('Agama', anggota['agama'] ?? '-'),
+                        _buildDetailRow(
+                          'Pendidikan',
+                          anggota['pendidikan'] ?? '-',
+                        ),
+                        _buildDetailRow(
+                          'Status Pernikahan',
+                          anggota['status_pernikahan'] ?? '-',
+                        ),
+                        _buildDetailRow(
+                          'Nama Ibu Kandung',
+                          anggota['nama_ibu_kandung'] ?? '-',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // -------------------------------
                 const Divider(height: 32),
 
                 Text(
@@ -318,6 +387,7 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                     title: const Text('Saudara Terdekat'),
                     subtitle: Text('${pinjaman['nama_saudara_terdekat']}'),
                   ),
+
                   const Divider(),
                   const Text(
                     'Dokumen:',
@@ -325,21 +395,17 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   // Showing uploaded documents
-                  if (pinjaman['slip_gaji'] != null)
-                    ListTile(
-                      leading: const Icon(Icons.image, color: Colors.blue),
-                      title: const Text('Slip Gaji'),
-                      trailing: const Icon(Icons.visibility),
-                      onTap: () =>
-                          _showImage(pinjaman['slip_gaji'], 'Slip Gaji'),
-                    ),
                   if (pinjaman['foto_kk'] != null)
                     ListTile(
-                      leading: const Icon(Icons.image, color: Colors.blue),
-                      title: const Text('Foto Kartu Keluarga'),
+                      leading: const Icon(
+                        Icons.perm_contact_calendar,
+                        color: Colors.purple,
+                      ),
+                      title: const Text('Foto KK'),
                       trailing: const Icon(Icons.visibility),
                       onTap: () => _showImage(pinjaman['foto_kk'], 'Foto KK'),
                     ),
+
                   if (pinjaman['foto_id_karyawan'] != null)
                     ListTile(
                       leading: const Icon(Icons.badge, color: Colors.blue),
@@ -349,6 +415,27 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                         pinjaman['foto_id_karyawan'],
                         'Foto ID Karyawan',
                       ),
+                    ),
+
+                  if (pinjaman['slip_gaji_path'] != null)
+                    ListTile(
+                      leading: const Icon(
+                        Icons.description,
+                        color: Colors.orange,
+                      ),
+                      title: const Text('Slip Gaji'),
+                      trailing: const Icon(Icons.visibility),
+                      onTap: () =>
+                          _showImage(pinjaman['slip_gaji_path'], 'Slip Gaji'),
+                    ),
+
+                  // KTP from Anggota
+                  if (anggota['ktp_path'] != null)
+                    ListTile(
+                      leading: const Icon(Icons.badge, color: Colors.green),
+                      title: const Text('Foto KTP'),
+                      trailing: const Icon(Icons.visibility),
+                      onTap: () => _showImage(anggota['ktp_path'], 'Foto KTP'),
                     ),
                   const Divider(),
                 ],
@@ -409,55 +496,100 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                       final bool sudahLunas = angsuran['status'] == 'lunas';
                       return Card(
                         color: sudahLunas ? Colors.green[50] : null,
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            child: Text('${angsuran['angsuran_ke']}'),
-                          ),
-                          title: Text('Rp ${angsuran['jumlah_bayar']}'),
-                          subtitle: Text(
-                            'Jatuh Tempo: ${angsuran['tanggal_jatuh_tempo']}',
-                          ),
-                          trailing: sudahLunas
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.green,
-                                    ),
-                                    Text(
-                                      'Lunas',
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: CircleAvatar(
+                                child: Text('${angsuran['angsuran_ke']}'),
+                              ),
+                              title: Text(
+                                'Rp ${angsuran['jumlah_angsuran'] ?? angsuran['jumlah_bayar']}',
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Jatuh Tempo: ${angsuran['tanggal_jatuh_tempo']}',
+                                  ),
+                                  if (angsuran['status'] ==
+                                      'menunggu_konfirmasi')
+                                    const Text(
+                                      'Menunggu Konfirmasi',
                                       style: TextStyle(
-                                        color: Colors.green,
-                                        fontSize: 12,
+                                        color: Colors.orange,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  ],
-                                )
-                              : (!isKetua)
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
+                                ],
+                              ),
+                              trailing: sudahLunas
+                                  ? Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                        ),
+                                        const Text(
+                                          'Lunas',
+                                          style: TextStyle(
+                                            color: Colors.green,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : null,
+                            ),
+                            // Action Buttons Row (Below ListTile)
+                            if (!sudahLunas && !isKetua)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  8,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    if (angsuran['bukti_bayar'] != null)
-                                      IconButton(
+                                    if (angsuran['bukti_bayar_path'] != null)
+                                      TextButton.icon(
                                         icon: const Icon(
                                           Icons.image,
+                                          size: 18,
                                           color: Colors.blue,
                                         ),
-                                        tooltip: 'Lihat Bukti',
+                                        label: const Text('Bukti'),
                                         onPressed: () => _showImage(
-                                          angsuran['bukti_bayar'],
+                                          angsuran['bukti_bayar_path'],
                                           'Bukti Pembayaran',
                                         ),
                                       ),
+                                    const SizedBox(width: 8),
                                     ElevatedButton(
                                       onPressed: () =>
                                           _confirmPayAngsuran(angsuran['id']),
-                                      child: const Text('Bayar'),
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        minimumSize: const Size(0, 32),
+                                        backgroundColor:
+                                            angsuran['status'] ==
+                                                'menunggu_konfirmasi'
+                                            ? Colors.orange
+                                            : Colors.blue,
+                                      ),
+                                      child: const Text('Verifikasi'),
                                     ),
                                   ],
-                                )
-                              : null,
+                                ),
+                              ),
+                          ],
                         ),
                       );
                     },

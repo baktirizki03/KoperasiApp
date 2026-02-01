@@ -44,6 +44,9 @@ class ApiService {
         );
       }
       if (response.statusCode == 403) {
+        if (body is Map && body.containsKey('message')) {
+          throw Exception(body['message']);
+        }
         throw Exception(
           'Anda tidak memiliki akses untuk fitur ini (Forbidden).',
         );
@@ -430,5 +433,44 @@ class ApiService {
       return responseData['data'] as List<dynamic>;
     }
     return [];
+  }
+
+  // --- Pengaturan Bunga (Ketua) ---
+
+  Future<List<dynamic>> getBungaSettings() async {
+    final responseData = await get('bunga-settings');
+    if (responseData is List) return responseData;
+    // Handle pagination or wrapped data if necessary
+    return [];
+  }
+
+  Future<dynamic> createBungaSetting(Map<String, dynamic> data) async {
+    return await post('bunga-settings', data);
+  }
+
+  Future<dynamic> updateBungaSetting(int id, Map<String, dynamic> data) async {
+    return await put('bunga-settings/$id', data);
+  }
+
+  Future<dynamic> deleteBungaSetting(int id) async {
+    return await delete('bunga-settings/$id');
+  }
+
+  // --- Password Management ---
+
+  Future<dynamic> updatePassword(
+    String currentPassword,
+    String newPassword,
+    String confirmPassword,
+  ) async {
+    return await put('update-password', {
+      'current_password': currentPassword,
+      'new_password': newPassword,
+      'new_password_confirmation': confirmPassword,
+    });
+  }
+
+  Future<dynamic> resetPasswordMember(int id) async {
+    return await post('anggota/$id/reset-password', {});
   }
 }

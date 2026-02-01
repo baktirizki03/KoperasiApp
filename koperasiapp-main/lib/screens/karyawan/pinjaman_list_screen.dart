@@ -12,16 +12,37 @@ class PinjamanListScreen extends StatefulWidget {
 class _PinjamanListScreenState extends State<PinjamanListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ApiService _apiService = ApiService();
+
+  // Search variables
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  // Data Caching to prevent re-fetching on search
+  late Future<List<dynamic>> _pendingFuture;
+  late Future<List<dynamic>> _approvedFuture;
+  late Future<List<dynamic>> _rejectedFuture;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _refreshData();
+  }
+
+  void _refreshData() {
+    setState(() {
+      _pendingFuture = _apiService.getPinjamanList('pending');
+      _approvedFuture = _apiService.getPinjamanList('disetujui');
+      _rejectedFuture = _apiService.getPinjamanList('ditolak');
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -29,10 +50,48 @@ class _PinjamanListScreenState extends State<PinjamanListScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manajemen Pinjaman'),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.black54),
+                decoration: const InputDecoration(
+                  hintText: 'Cari nama anggota...',
+                  hintStyle: TextStyle(color: Colors.black54),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              )
+            : const Text('Manajemen Pinjaman'),
+        actions: [
+          if (_isSearching)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                setState(() {
+                  _isSearching = false;
+                  _searchQuery = '';
+                  _searchController.clear();
+                });
+              },
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () {
+                setState(() {
+                  _isSearching = true;
+                });
+              },
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: [
+          tabs: const [
             Tab(text: 'Pending'),
             Tab(text: 'Disetujui'),
             Tab(text: 'Ditolak'),
@@ -42,22 +101,20 @@ class _PinjamanListScreenState extends State<PinjamanListScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildPinjamanList('pending'),
-          _buildPinjamanList('disetujui'),
-          _buildPinjamanList('ditolak'),
+          _buildPinjamanList(_pendingFuture, 'pending'),
+          _buildPinjamanList(_approvedFuture, 'disetujui'),
+          _buildPinjamanList(_rejectedFuture, 'ditolak'),
         ],
       ),
     );
   }
 
-  Widget _buildPinjamanList(String status) {
-    final ApiService apiService = ApiService();
-
+  Widget _buildPinjamanList(Future<List<dynamic>> future, String status) {
     return FutureBuilder<List<dynamic>>(
-      future: apiService.getPinjamanList(status),
+      future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
@@ -68,10 +125,23 @@ class _PinjamanListScreenState extends State<PinjamanListScreen>
           );
         }
 
-        final pinjamanList = snapshot.data!;
+        // Filtering Logic
+        final pinjamanList = snapshot.data!.where((pinjaman) {
+          if (_searchQuery.isEmpty) return true;
+          final anggota = pinjaman['anggota'];
+          final nama = (anggota != null ? anggota['nama_lengkap'] : '')
+              .toString()
+              .toLowerCase();
+          return nama.contains(_searchQuery.toLowerCase());
+        }).toList();
+
+        if (pinjamanList.isEmpty) {
+          return const Center(child: Text('Data tidak ditemukan.'));
+        }
+
         return RefreshIndicator(
           onRefresh: () async {
-            setState(() {});
+            _refreshData();
           },
           child: ListView.builder(
             itemCount: pinjamanList.length,
@@ -79,7 +149,7 @@ class _PinjamanListScreenState extends State<PinjamanListScreen>
               final pinjaman = pinjamanList[index];
               final anggota = pinjaman['anggota'];
               return Card(
-                margin: EdgeInsets.all(8.0),
+                margin: const EdgeInsets.all(8.0),
                 child: ListTile(
                   title: Text(
                     anggota != null
@@ -98,7 +168,7 @@ class _PinjamanListScreenState extends State<PinjamanListScreen>
                       ),
                     );
                     if (result == true) {
-                      setState(() {});
+                      _refreshData(); // Refresh if updated
                     }
                   },
                 ),
