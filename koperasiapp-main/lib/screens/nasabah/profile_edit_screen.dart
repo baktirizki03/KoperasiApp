@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 
 class ProfileEditScreen extends StatefulWidget {
@@ -13,7 +15,10 @@ class ProfileEditScreen extends StatefulWidget {
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
+  final ImagePicker _picker = ImagePicker(); // New
   bool _isLoading = false;
+
+  XFile? _imageFile; // New
 
   late TextEditingController _namaController;
   late TextEditingController _tempatLahirController;
@@ -24,6 +29,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   // New Controllers
   late TextEditingController _noKtpController;
   late TextEditingController _pekerjaanController;
+  late TextEditingController _departemenController; // New
+  late TextEditingController _namaBankController; // New
+  late TextEditingController _noRekeningController; // New
   late TextEditingController _namaIbuKandungController;
 
   String? _jenisKelaminValue;
@@ -32,6 +40,34 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   String? _pendidikanValue;
   String? _agamaValue;
   String? _statusPernikahanValue;
+
+  // Mutable Options Lists
+  final List<String> _pendidikanOptions = [
+    'SD',
+    'SMP',
+    'SMA',
+    'D3',
+    'S1',
+    'S2',
+    'S3',
+  ];
+  final List<String> _agamaOptions = [
+    'Islam',
+    'Kristen',
+    'Katolik',
+    'Hindu',
+    'Buddha',
+    'Konghucu',
+  ];
+  final List<String> _statusPernikahanOptions = [
+    'Belum Menikah',
+    'Menikah',
+    'Cerai Hidup',
+    'Cerai Mati',
+  ];
+  // Jenis kelamin options are simple enough but let's be consistent if needed.
+  // For now, JK uses a simple map in build, but we need to handle the value setting carefully.
+  final List<String> _jenisKelaminOptions = ['laki-laki', 'perempuan'];
 
   @override
   void initState() {
@@ -57,20 +93,110 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _pekerjaanController = TextEditingController(
       text: widget.anggota['pekerjaan'],
     );
+    _departemenController = TextEditingController(
+      text: widget.anggota['departemen'] ?? '',
+    );
+    _namaBankController = TextEditingController(
+      text: widget.anggota['nama_bank'] ?? '',
+    );
+    _noRekeningController = TextEditingController(
+      text: widget.anggota['no_rekening'] ?? '',
+    );
     _namaIbuKandungController = TextEditingController(
       text: widget.anggota['nama_ibu_kandung'],
     );
 
-    _jenisKelaminValue = widget.anggota['jenis_kelamin'];
-    _pendidikanValue = widget.anggota['pendidikan'];
-    _agamaValue = widget.anggota['agama'];
-    _statusPernikahanValue = widget.anggota['status_pernikahan'];
+    // --- Robust Dropdown Initialization ---
+    void setupDropdown(
+      String? rawValue,
+      List<String> options,
+      Function(String?) setValue,
+    ) {
+      if (rawValue == null || rawValue.isEmpty) {
+        setValue(null);
+        return;
+      }
+      String cleanValue = rawValue.toString().trim();
+
+      // Case-insensitive match
+      String? existingOption;
+      try {
+        existingOption = options.firstWhere(
+          (opt) => opt.toLowerCase() == cleanValue.toLowerCase(),
+        );
+      } catch (e) {
+        existingOption = null;
+      }
+
+      if (existingOption != null) {
+        setValue(existingOption);
+      } else {
+        options.add(cleanValue);
+        setValue(cleanValue);
+      }
+    }
+
+    setupDropdown(
+      widget.anggota['pendidikan'],
+      _pendidikanOptions,
+      (val) => _pendidikanValue = val,
+    );
+    setupDropdown(
+      widget.anggota['agama'],
+      _agamaOptions,
+      (val) => _agamaValue = val,
+    );
+    setupDropdown(
+      widget.anggota['status_pernikahan'],
+      _statusPernikahanOptions,
+      (val) => _statusPernikahanValue = val,
+    );
+
+    // JK Logic
+    String? rawJK = widget.anggota['jenis_kelamin'];
+    if (rawJK != null && rawJK.isNotEmpty) {
+      String cleanJK = rawJK.toString().trim();
+      bool exists = _jenisKelaminOptions.any(
+        (opt) => opt.toLowerCase() == cleanJK.toLowerCase(),
+      );
+      if (!exists) {
+        // If "Pria" comes in, add "Pria" to options so it shows up,
+        // but typically we want to map it. For safety, just add it.
+        _jenisKelaminOptions.add(cleanJK);
+      }
+      // Since the build() uses value directly as option value, we should use the exact string from options if matched, or the raw one if added.
+      String? match = _jenisKelaminOptions.firstWhere(
+        (opt) => opt.toLowerCase() == cleanJK.toLowerCase(),
+        orElse: () => cleanJK,
+      );
+      _jenisKelaminValue = match;
+    } else {
+      _jenisKelaminValue = null;
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = pickedFile;
+      });
+    }
   }
 
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
+        // Upload photo logic
+        if (_imageFile != null) {
+          final bytes = await File(_imageFile!.path).readAsBytes();
+          await _apiService.uploadProfilePhoto(bytes, _imageFile!.name);
+        }
+
         await _apiService.updateMyProfile({
           'nama_lengkap': _namaController.text,
           'tempat_lahir': _tempatLahirController.text,
@@ -81,6 +207,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
           'nomor_ktp': _noKtpController.text,
           'pekerjaan': _pekerjaanController.text,
+          'departemen': _departemenController.text, // New
+          'nama_bank': _namaBankController.text, // New
+          'no_rekening': _noRekeningController.text, // New
           'pendidikan': _pendidikanValue ?? '',
           'agama': _agamaValue ?? '',
           'status_pernikahan': _statusPernikahanValue ?? '',
@@ -118,6 +247,55 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // --- Profile Photo ---
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage: _imageFile != null
+                            ? FileImage(File(_imageFile!.path))
+                            : (widget.anggota['foto_profile_path'] != null
+                                      ? NetworkImage(
+                                          '${_apiService.storageUrl}/${widget.anggota['foto_profile_path']}',
+                                        )
+                                      : null)
+                                  as ImageProvider?,
+                        child:
+                            _imageFile == null &&
+                                widget.anggota['foto_profile_path'] == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 50,
+                                color: Colors.grey,
+                              )
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
               // --- Data Pribadi Utama ---
               TextFormField(
                 controller: _namaController,
@@ -148,7 +326,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _jenisKelaminValue,
-                items: ['laki-laki', 'perempuan'].map((String value) {
+                items: _jenisKelaminOptions.map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
                     child: Text(value.toUpperCase()),
@@ -184,9 +362,27 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
               ),
               const SizedBox(height: 16),
+              TextFormField(
+                controller: _departemenController,
+                decoration: const InputDecoration(
+                  labelText: 'Departemen / Unit Kerja',
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _namaBankController,
+                decoration: const InputDecoration(labelText: 'Nama Bank'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _noRekeningController,
+                decoration: const InputDecoration(labelText: 'No. Rekening'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _pendidikanValue,
-                items: ['SD', 'SMP', 'SMA', 'D3', 'S1', 'S2', 'S3']
+                items: _pendidikanOptions
                     .map(
                       (val) => DropdownMenuItem(value: val, child: Text(val)),
                     )
@@ -200,20 +396,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _agamaValue,
-                items:
-                    [
-                          'Islam',
-                          'Kristen',
-                          'Katolik',
-                          'Hindu',
-                          'Buddha',
-                          'Konghucu',
-                        ]
-                        .map(
-                          (val) =>
-                              DropdownMenuItem(value: val, child: Text(val)),
-                        )
-                        .toList(),
+                items: _agamaOptions
+                    .map(
+                      (val) => DropdownMenuItem(value: val, child: Text(val)),
+                    )
+                    .toList(),
                 onChanged: (val) => setState(() => _agamaValue = val),
                 decoration: const InputDecoration(labelText: 'Agama'),
                 validator: (v) => v == null ? 'Wajib diisi' : null,
@@ -221,7 +408,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _statusPernikahanValue,
-                items: ['Belum Menikah', 'Menikah', 'Cerai Hidup', 'Cerai Mati']
+                items: _statusPernikahanOptions
                     .map(
                       (val) => DropdownMenuItem(value: val, child: Text(val)),
                     )

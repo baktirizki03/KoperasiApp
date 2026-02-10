@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../services/api_service.dart';
 
 class AnggotaFormScreen extends StatefulWidget {
@@ -51,6 +53,9 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
   late TextEditingController _alamatController;
   late TextEditingController _teleponController;
   late TextEditingController _pekerjaanController;
+  late TextEditingController _departemenController; // New
+  late TextEditingController _namaBankController; // New
+  late TextEditingController _noRekeningController; // New
   String? _pendidikanValue;
   String? _agamaValue;
   String? _statusPernikahanValue;
@@ -61,6 +66,8 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
 
   bool _isEditMode = false;
   bool _isLoading = false;
+  XFile? _ktpFile;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -85,10 +92,81 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
     );
     _teleponController = TextEditingController(text: data['no_telepon'] ?? '');
     _pekerjaanController = TextEditingController(text: data['pekerjaan'] ?? '');
+    _departemenController = TextEditingController(
+      text: data['departemen'] ?? '',
+    ); // New
+    _namaBankController = TextEditingController(
+      text: data['nama_bank'] ?? '',
+    ); // New
+    _noRekeningController = TextEditingController(
+      text: data['no_rekening'] ?? '',
+    ); // New
 
-    _pendidikanValue = data['pendidikan'];
-    _agamaValue = data['agama'];
-    _statusPernikahanValue = data['status_pernikahan'];
+    // --- Robust Dropdown Initialization ---
+    // Helper to safely set dropdown value (Trim -> Match Case-Insensitive -> Add if Missing)
+    void setupDropdown(
+      String? rawValue,
+      List<String> options,
+      Function(String?) setValue,
+    ) {
+      if (rawValue == null || rawValue.isEmpty) {
+        setValue(null);
+        return;
+      }
+      String cleanValue = rawValue.toString().trim();
+
+      // Cari match yang case-insensitive
+      String? existingOption;
+      try {
+        existingOption = options.firstWhere(
+          (opt) => opt.toLowerCase() == cleanValue.toLowerCase(),
+        );
+      } catch (e) {
+        existingOption = null;
+      }
+
+      if (existingOption != null) {
+        setValue(existingOption); // Pakai opsi yang sudah ada (casing sesuai)
+      } else {
+        options.add(cleanValue); // Tambahkan opsi baru jika tidak ada
+        setValue(cleanValue);
+      }
+    }
+
+    setupDropdown(
+      data['pendidikan'],
+      _pendidikanOptions,
+      (val) => _pendidikanValue = val,
+    );
+    setupDropdown(data['agama'], _agamaOptions, (val) => _agamaValue = val);
+    setupDropdown(
+      data['status_pernikahan'],
+      _statusPernikahanOptions,
+      (val) => _statusPernikahanValue = val,
+    );
+
+    // Special Handling for Jenis Kelamin (karena value di build() di-lowercase)
+    String? rawJK = data['jenis_kelamin'];
+    if (rawJK != null && rawJK.isNotEmpty) {
+      String cleanJK = rawJK.toString().trim();
+      String lowerJK = cleanJK.toLowerCase();
+
+      // Cek apakah opsi source-nya ada (untuk label)
+      bool sourceExists = _jenisKelaminOptions.any(
+        (opt) => opt.toLowerCase() == cleanJK.toLowerCase(),
+      );
+
+      if (!sourceExists) {
+        // Jika tidak ada di source options (misal "Pria"), tambahkan ke source agar ter-render widgetnya
+        // Kita tambahkan versi aslinya (Title Case) agar labelnya bagus
+        _jenisKelaminOptions.add(cleanJK);
+      }
+
+      // Value harus lower karena di build() item.value = value.toLowerCase()
+      _jenisKelaminValue = lowerJK;
+    } else {
+      _jenisKelaminValue = null;
+    }
 
     _namaIbuKandungController = TextEditingController(
       text: data['nama_ibu_kandung'] ?? '',
@@ -109,6 +187,9 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
     _alamatController.dispose();
     _teleponController.dispose();
     _pekerjaanController.dispose();
+    _departemenController.dispose(); // New
+    _namaBankController.dispose(); // New
+    _noRekeningController.dispose(); // New
     _namaIbuKandungController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -129,6 +210,9 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
         'domisili': _alamatController.text,
         'no_telepon': _teleponController.text,
         'pekerjaan': _pekerjaanController.text,
+        'departemen': _departemenController.text, // New
+        'nama_bank': _namaBankController.text, // New
+        'no_rekening': _noRekeningController.text, // New
         'pendidikan': _pendidikanValue!,
         'agama': _agamaValue!,
         'status_pernikahan': _statusPernikahanValue!,
@@ -143,11 +227,24 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
 
       try {
         if (_isEditMode) {
-          // Mode Edit
+          // Mode Edit (Update currently doesn't support file upload in this snippet, keeping existing logic for now or updating if needed.
+          // User asked for "Add Member" fix. Update might need separate request if we want to support updating KTP too.)
           await _apiService.updateAnggota(widget.anggota!['id'], data);
         } else {
           // Mode Tambah
-          await _apiService.createAnggota(data);
+          if (_ktpFile == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Harap upload foto KTP'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            setState(() => _isLoading = false);
+            return;
+          }
+
+          final bytes = await _ktpFile!.readAsBytes();
+          await _apiService.createAnggota(data, bytes.toList(), _ktpFile!.name);
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -238,6 +335,50 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
                 validator: (value) =>
                     value!.isEmpty ? 'No KTP/SIM tidak boleh kosong' : null,
               ),
+              const SizedBox(height: 10),
+              if (!_isEditMode) ...[
+                const Text(
+                  'Foto KTP',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final XFile? image = await _picker.pickImage(
+                      source: ImageSource.gallery,
+                      imageQuality: 50,
+                    );
+                    if (image != null) {
+                      setState(() {
+                        _ktpFile = image;
+                      });
+                    }
+                  },
+                  child: Container(
+                    height: 150,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey[200],
+                    ),
+                    child: _ktpFile != null
+                        ? Image.file(File(_ktpFile!.path), fit: BoxFit.cover)
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(
+                                Icons.camera_alt,
+                                size: 40,
+                                color: Colors.grey,
+                              ),
+                              Text('Tap untuk upload KTP'),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
               TextFormField(
                 controller: _alamatController,
                 decoration: InputDecoration(labelText: 'Alamat'),
@@ -257,6 +398,28 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
                 decoration: InputDecoration(labelText: 'Pekerjaan/Usaha'),
                 validator: (value) =>
                     value!.isEmpty ? 'Pekerjaan tidak boleh kosong' : null,
+              ),
+              TextFormField(
+                controller: _departemenController, // New
+                decoration: InputDecoration(labelText: 'Departemen/Unit Kerja'),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _namaBankController, // New
+                      decoration: InputDecoration(labelText: 'Nama Bank'),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _noRekeningController, // New
+                      decoration: InputDecoration(labelText: 'No Rekening'),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
               ),
 
               SizedBox(height: 10),

@@ -117,7 +117,11 @@ class _PinjamanListScreenState extends State<PinjamanListScreen>
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(
+            child: Text(
+              'Error: ${snapshot.error.toString().replaceAll('Exception: ', '')}',
+            ),
+          );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(

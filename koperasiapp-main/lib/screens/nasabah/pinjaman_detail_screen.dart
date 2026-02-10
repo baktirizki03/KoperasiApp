@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'pinjaman_form_screen.dart';
 
 class NasabahPinjamanDetailScreen extends StatefulWidget {
   final int pinjamanId;
@@ -123,6 +125,59 @@ class _NasabahPinjamanDetailScreenState
                             ),
                           ),
                         ],
+                        if (pinjaman['status'] == 'perlu_perbaikan') ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.orange[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Permintaan Perbaikan:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  pinjaman['alasan_penolakan'] ?? '-',
+                                  style: const TextStyle(color: Colors.orange),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      final result = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (ctx) => PinjamanFormScreen(
+                                            pinjaman: pinjaman,
+                                          ),
+                                        ),
+                                      );
+                                      if (result == true) {
+                                        _loadDetail();
+                                      }
+                                    },
+                                    icon: const Icon(Icons.edit),
+                                    label: const Text('Perbaiki Pengajuan'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const Divider(),
                         Text(
                           'Keperluan: ${pinjaman['untuk_keperluan'] ?? '-'}',
@@ -209,7 +264,7 @@ class _NasabahPinjamanDetailScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Jatuh Tempo: ${angsuran['tanggal_jatuh_tempo']}',
+                  'Jatuh Tempo: ${DateFormat('dd MMM yyyy').format(DateTime.parse(angsuran['tanggal_jatuh_tempo']))}',
                   style: const TextStyle(fontSize: 12),
                 ),
                 Text(

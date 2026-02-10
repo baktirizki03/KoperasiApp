@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 
@@ -113,10 +114,18 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
     final isKetua =
         Provider.of<AuthProvider>(context, listen: false).role == 'ketua';
 
+    // Check flow based on 'tipe' (kredit/debet)
+    // NOTE: DB uses 'tipe' for flow (kredit/debet) and 'jenis_transaksi' for category
+    final isKredit = simpanan['tipe']?.toString().toLowerCase() == 'kredit';
+    final tipeLabel = isKredit
+        ? "Uang Masuk (Setoran)"
+        : "Uang Keluar (Penarikan)";
+    final categoryLabel = simpanan['jenis_transaksi'] ?? '-';
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Detail Setoran'),
+        title: Text(isKredit ? 'Detail Setoran' : 'Detail Penarikan'),
         content: SingleChildScrollView(
           child: ListBody(
             children: <Widget>[
@@ -124,37 +133,89 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
               Text('Email: ${anggota['user']['email'] ?? 'N/A'}'),
               const Divider(),
               Text('Nominal: Rp ${simpanan['nominal'] ?? 0}'),
-              Text('Jenis Transaksi: ${simpanan['jenis_transaksi'] ?? 'N/A'}'),
-              Text('Tanggal: ${simpanan['tanggal'] ?? 'N/A'}'),
-              const SizedBox(height: 16),
-              const Text(
-                'Bukti Transfer:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                'Tipe: $tipeLabel',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isKredit ? Colors.green : Colors.red,
+                ),
               ),
-              const SizedBox(height: 8),
-              if (simpanan['bukti_transfer_path'] != null)
-                InkWell(
-                  onTap: () => _showImage(
-                    simpanan['bukti_transfer_path'],
-                    'Bukti Transfer',
+              Text('Kategori: $categoryLabel'),
+              Text(
+                'Tanggal: ${simpanan['tanggal'] != null ? DateFormat('dd MMM yyyy').format(DateTime.parse(simpanan['tanggal'])) : 'N/A'}',
+              ),
+              const Divider(),
+              if (!isKredit) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50], // Light red background for attention
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red[200]!),
                   ),
-                  child: Container(
-                    height: 150,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                      image: DecorationImage(
-                        image: NetworkImage(
-                          '${_apiService.storageUrl}/${simpanan['bukti_transfer_path']}',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'REKENING TUJUAN TRANSFER',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
                         ),
-                        fit: BoxFit.cover,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${anggota['nama_bank'] ?? '-'}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${anggota['no_rekening'] ?? '-'}',
+                        style: const TextStyle(fontSize: 18, letterSpacing: 1),
+                      ),
+                      Text('a.n. ${anggota['nama_lengkap'] ?? '-'}'),
+                      if (anggota['departemen'] != null &&
+                          anggota['departemen'].toString().isNotEmpty)
+                        Text(
+                          'Dept: ${anggota['departemen']}',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              if (isKredit) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Bukti Transfer:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                if (simpanan['bukti_transfer_path'] != null)
+                  InkWell(
+                    onTap: () => _showImage(
+                      simpanan['bukti_transfer_path'],
+                      'Bukti Transfer',
+                    ),
+                    child: Container(
+                      height: 150,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                        image: DecorationImage(
+                          image: NetworkImage(
+                            '${_apiService.storageUrl}/${simpanan['bukti_transfer_path']}',
+                          ),
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
-                  ),
-                )
-              else
-                const Text('Tidak ada bukti transfer.'),
+                  )
+                else
+                  const Text('Tidak ada bukti transfer.'),
+              ],
             ],
           ),
         ),
@@ -165,6 +226,10 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
           ),
           if (!isKetua)
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isKredit ? Colors.green : Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('Setujui'),
               onPressed: () {
                 Navigator.of(ctx).pop();
@@ -203,20 +268,47 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
               itemBuilder: (ctx, index) {
                 final simpanan = simpananList[index];
                 final anggota = simpanan['anggota'];
+
+                final isKredit =
+                    simpanan['tipe']?.toString().toLowerCase() == 'kredit';
+                final label = isKredit ? "Setoran" : "Penarikan";
+
                 return Card(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
                   child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.receipt)),
+                    leading: CircleAvatar(
+                      backgroundColor: isKredit
+                          ? Colors.green.shade100
+                          : Colors.red.shade100,
+                      child: Icon(
+                        isKredit ? Icons.arrow_downward : Icons.arrow_upward,
+                        color: isKredit ? Colors.green : Colors.red,
+                      ),
+                    ),
                     title: Text(
                       anggota != null
                           ? anggota['nama_lengkap']
                           : 'Nama tidak ada',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: Text(
-                      'Rp ${simpanan['nominal']} - ${simpanan['jenis_transaksi']}',
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Rp ${simpanan['nominal']}'),
+                        Text(
+                          '$label - ${simpanan['jenis_transaksi']}',
+                          style: TextStyle(
+                            color: isKredit
+                                ? Colors.green.shade700
+                                : Colors.red.shade700,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _showDetailDialog(simpanan),

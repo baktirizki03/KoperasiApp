@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 
 import '../../widgets/header_widget.dart';
-import '../../widgets/kpi_grid_widget.dart';
-import '../../widgets/financial_chart_widget.dart';
-import '../../widgets/recent_activity_widget.dart';
+import '../../widgets/carousel_chart_widget.dart';
+
 import '../karyawan/anggota_list_screen.dart';
 import 'laporan_pinjaman_screen.dart';
 import 'laporan_simpanan_screen.dart';
@@ -40,32 +40,138 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
   Future<Map<String, dynamic>> _fetchDashboardData() async {
     try {
       final reports = await _apiService.getKetuaReports();
-      final angsuranList = await _apiService.getAngsuranKetua();
+
+      final pinjamanList = await _apiService.getPinjamanKetua();
+      final simpananList = await _apiService.getSimpananKetua();
+      final anggotaList = await _apiService.getAnggota(); // Needed for count
 
       // Hitung angsuran aktif (status != 'lunas')
-      final activeAngsuranCount = angsuranList
-          .where(
-            (item) =>
-                (item['status'] ?? '').toString().toLowerCase() != 'lunas',
-          )
-          .length;
+      // Calculate Pending Counts
+      final pendingPinjaman = pinjamanList.where((i) {
+        final status = (i['status'] ?? '').toString().toLowerCase();
+        return status == 'menunggu_konfirmasi' || status == 'pending';
+      }).length;
+
+      final pendingSimpanan = simpananList.where((i) {
+        final status = (i['status'] ?? '').toString().toLowerCase();
+        return status == 'menunggu_konfirmasi' || status == 'pending';
+      }).length;
+
+      // --- CORRECT ASSET CALCULATION (SIMPANAN WAJIB + SHU) ---
+      // User Request: Total Aset = Simpanan Wajib + Keuntungan Bunga (SHU).
+
+      // Part 1: Simpanan Wajib
+      double totalSimpananWajib = 0;
+      for (var s in simpananList) {
+        if ((s['status'] ?? '').toString().toLowerCase() == 'disetujui') {
+          // Check for 'Wajib' in jenis_transaksi
+          final jenis = (s['jenis_transaksi'] ?? '').toString().toLowerCase();
+          if (jenis.contains('wajib')) {
+            double amount =
+                double.tryParse((s['nominal'] ?? '0').toString()) ?? 0;
+            if ((s['tipe'] ?? '').toString().toLowerCase() == 'kredit') {
+              totalSimpananWajib += amount;
+            } else {
+              totalSimpananWajib -= amount;
+            }
+          }
+        }
+      }
+
+      // Part 2: SHU (Interest Revenue)
+      // Formula: Sum of ((MonthlyPayment * Duration) - Principal) for all approved/paid loans.
+      double totalInterestAssets = 0;
+      for (var p in pinjamanList) {
+        final status = (p['status'] ?? '').toString().toLowerCase();
+        if (status == 'disetujui' || status == 'lunas') {
+          double nominal =
+              double.tryParse((p['nominal'] ?? '0').toString()) ?? 0;
+          double angsuranPerBulan =
+              double.tryParse((p['jumlah_angsuran'] ?? '0').toString()) ?? 0;
+          int lamaAngsuran =
+              int.tryParse((p['lama_angsuran'] ?? '0').toString()) ?? 0;
+
+          if (lamaAngsuran > 0 && angsuranPerBulan > 0) {
+            double totalBayar = angsuranPerBulan * lamaAngsuran;
+            double bunga = totalBayar - nominal;
+            if (bunga > 0) {
+              totalInterestAssets += bunga;
+            }
+          }
+        }
+      }
+
+      // Total Asset
+      double totalAssets = totalSimpananWajib + totalInterestAssets;
+      if (totalAssets < 0) totalAssets = 0;
+
+      // --- KAS MASUK (SIMPANAN SUKARELA) ---
+      // User Request: Kas Masuk diambil dari Simpanan Sukarela.
+      double totalKasMasuk = 0;
+      for (var s in simpananList) {
+        if ((s['status'] ?? '').toString().toLowerCase() == 'disetujui') {
+          // Check for 'Sukarela'
+          final jenis = (s['jenis_transaksi'] ?? '').toString().toLowerCase();
+          if (jenis.contains('sukarela')) {
+            double amount =
+                double.tryParse((s['nominal'] ?? '0').toString()) ?? 0;
+            if ((s['tipe'] ?? '').toString().toLowerCase() == 'kredit') {
+              totalKasMasuk += amount;
+            }
+            // NOTE: 'Kas Masuk' usually implies Inflow only. If we want Net Flow, subtract debit.
+            // User said "Kas Masuk... diambil dari simpanan sukarela".
+            // Typically "Kas Masuk" = Income/Debit(in accounting terms for Cash).
+            // Simpanan 'Kredit' in our DB context usually means User Deposit (Money In to Coop).
+            // Simpanan 'Debet' means User Withdraw (Money Out from Coop).
+            // So Kas Masuk = Sum of 'Kredit' transactions of Sukarela.
+          }
+        }
+      }
+
+      // --- PINJAMAN BERJALAN (TOTAL NOMINAL RP) ---
+      // User Request: Total pinjaman aktif tapi dalam bentuk rupiah.
+      double totalNominalPinjamanAktif = 0;
+      int activeLoanCount = 0;
+
+      for (var p in pinjamanList) {
+        final status = (p['status'] ?? '').toString().toLowerCase();
+        if (status == 'disetujui') {
+          // Only active
+          double nominal =
+              double.tryParse((p['nominal'] ?? '0').toString()) ?? 0;
+          totalNominalPinjamanAktif += nominal;
+          activeLoanCount++;
+        }
+      }
+
+      // Additional requested logic mostly done.
 
       // Gabungkan data
       final Map<String, dynamic> mergedData = Map.from(reports);
-      mergedData['total_angsuran_aktif'] = activeAngsuranCount;
+      mergedData['total_angsuran_aktif_val'] = totalNominalPinjamanAktif;
+      mergedData['total_angsuran_aktif_count'] = activeLoanCount;
+      mergedData['pending_pinjaman'] = pendingPinjaman;
+      mergedData['pending_simpanan'] = pendingSimpanan;
+      mergedData['estimated_assets'] = totalAssets;
+      mergedData['kas_masuk_sukarela'] = totalKasMasuk;
+      mergedData['total_anggota'] = anggotaList.length;
+
+      // Pass lists for charts
+      mergedData['simpanan_list'] = simpananList;
+      mergedData['pinjaman_list'] = pinjamanList;
+      mergedData['anggota_list'] = anggotaList;
 
       return mergedData;
     } catch (e) {
-      // Jika error, kembalikan map kosong atau rethrow
-      // Di sini kita rethrow agar FutureBuilder menangkap errornya
       rethrow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // ... [No changes to app bar or drawer] ...
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(
           'Dashboard Ketua',
@@ -74,117 +180,9 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
         centerTitle: true,
         elevation: 0,
         backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  const Icon(
-                    Icons.admin_panel_settings,
-                    color: Colors.white,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Menu Ketua',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.dashboard_outlined),
-              title: const Text('Dashboard'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.people_outline),
-              title: const Text('Daftar Anggota'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (c) => AnggotaListScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.monetization_on_outlined),
-              title: const Text('Laporan Pinjaman'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (c) => const LaporanPinjamanScreen(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.account_balance_wallet_outlined),
-              title: const Text('Laporan Simpanan'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (c) => const LaporanSimpananScreen(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today_outlined),
-              title: const Text('Laporan Angsuran'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (c) => const LaporanAngsuranScreen(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.percent, color: Colors.green),
-              title: const Text('Pengaturan Bunga'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (c) => const BungaSettingListScreen(),
-                  ),
-                );
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Logout', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Provider.of<AuthProvider>(context, listen: false).logout();
-              },
-            ),
-          ],
-        ),
-      ),
+      drawer: _buildDrawer(),
       body: RefreshIndicator(
         onRefresh: () async => _loadData(),
         child: FutureBuilder<Map<String, dynamic>>(
@@ -194,41 +192,41 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline_rounded,
-                      size: 60,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Gagal memuat laporan',
-                      style: GoogleFonts.poppins(color: Colors.grey),
-                    ),
-                    TextButton(
-                      onPressed: _loadData,
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
-                ),
-              );
+              return Center(child: Text('Gagal: ${snapshot.error}'));
             }
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(child: Text('Tidak ada data laporan.'));
+            if (!snapshot.hasData) {
+              return const Center(child: Text('Tidak ada data.'));
             }
 
             final data = snapshot.data!;
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const HeaderWidget(),
+                  const SizedBox(height: 24),
 
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth > 800) {
-                  return _buildWideLayout(data);
-                }
-                return _buildNarrowLayout(data);
-              },
+                  // Top Stats Cards
+                  _buildGradientStatsGrid(data),
+
+                  const SizedBox(height: 24),
+
+                  // "Butuh Persetujuan" Section
+                  _buildPendingSection(data),
+
+                  const SizedBox(height: 24),
+
+                  // Financial Chart
+                  // Carousel Chart Widget
+                  CarouselChartWidget(
+                    data: data,
+                    simpananList: (data['simpanan_list'] as List?) ?? [],
+                    pinjamanList: (data['pinjaman_list'] as List?) ?? [],
+                    anggotaList: (data['anggota_list'] as List?) ?? [],
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -236,55 +234,342 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
     );
   }
 
-  Widget _buildNarrowLayout(Map<String, dynamic> data) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
-      child: Column(
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
-          const HeaderWidget(),
-          const SizedBox(height: 24),
-          KpiGridWidget(data: data, crossAxisCount: 2),
-          const SizedBox(height: 24),
-          FinancialChartWidget(data: data),
-          const SizedBox(height: 24),
-          RecentActivityWidget(
-            activities: (data['recent_activity'] as List?) ?? [],
+          DrawerHeader(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Icon(
+                  Icons.admin_panel_settings,
+                  color: Colors.white,
+                  size: 48,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Menu Ketua',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.dashboard_outlined),
+            title: const Text('Dashboard'),
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.people_outline),
+            title: const Text('Daftar Anggota'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (c) => AnggotaListScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.monetization_on_outlined),
+            title: const Text('Laporan Pinjaman'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (c) => const LaporanPinjamanScreen(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet_outlined),
+            title: const Text('Laporan Simpanan'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (c) => const LaporanSimpananScreen(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.calendar_today_outlined),
+            title: const Text('Laporan Angsuran'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (c) => const LaporanAngsuranScreen(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.percent, color: Colors.green),
+            title: const Text('Pengaturan Bunga'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (c) => const BungaSettingListScreen(),
+                ),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Logout', style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Provider.of<AuthProvider>(context, listen: false).logout();
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildWideLayout(Map<String, dynamic> data) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(30.0),
-      child: Column(
-        children: [
-          const HeaderWidget(),
-          const SizedBox(height: 30),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: Column(
-                  children: [
-                    KpiGridWidget(data: data, crossAxisCount: 2),
-                    const SizedBox(height: 30),
-                    FinancialChartWidget(data: data),
-                  ],
-                ),
+  Widget _buildGradientStatsGrid(Map<String, dynamic> data) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildGradientCard(
+                'Total Aset',
+                data['estimated_assets'] ?? 0,
+                Icons.account_balance_wallet,
+                // Deep Royal Blue -> Blue
+                [const Color(0xFF0D47A1), const Color(0xFF1976D2)],
+                isCurrency: true,
               ),
-              const SizedBox(width: 30),
-              Expanded(
-                flex: 1,
-                child: RecentActivityWidget(
-                  activities: (data['recent_activity'] as List?) ?? [],
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildGradientCard(
+                'Anggota Aktif',
+                data['total_anggota'] ?? 0,
+                Icons.people_alt,
+                // Deep Purple -> Magenta (Professional)
+                [const Color(0xFF4A148C), const Color(0xFF7B1FA2)],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildGradientCard(
+                'Pinjaman Berjalan', // Label remains, value changes to Rp
+                data['total_angsuran_aktif_val'] ?? 0,
+                Icons.trending_up,
+                // Dark Green -> Emerald
+                [const Color(0xFF1B5E20), const Color(0xFF2E7D32)],
+                isCurrency: true,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildGradientCard(
+                'Kas Masuk (Sukarela)',
+                data['kas_masuk_sukarela'] ?? 0,
+                Icons.savings,
+                // Bronze -> Amber (Wealth)
+                [const Color(0xFFE65100), const Color(0xFFF57C00)],
+                isCurrency: true,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGradientCard(
+    String title,
+    dynamic value,
+    IconData icon,
+    List<Color> colors, {
+    bool isCurrency = false,
+  }) {
+    String displayValue = value.toString();
+    if (isCurrency && value is num) {
+      displayValue = NumberFormat.compactCurrency(
+        locale: 'id_ID',
+        symbol: 'Rp',
+      ).format(value);
+    }
+
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: colors[0].withOpacity(0.3),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: Colors.white.withOpacity(0.8), size: 28),
+              Container(
+                padding: EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
                 ),
+                child: Icon(Icons.arrow_forward, color: Colors.white, size: 12),
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          Text(
+            displayValue,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 12,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPendingSection(Map<String, dynamic> data) {
+    int pendingPinjaman = data['pending_pinjaman'] ?? 0;
+    int pendingSimpanan = data['pending_simpanan'] ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Butuh Persetujuan',
+          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                'Pinjaman',
+                pendingPinjaman,
+                Colors.orange,
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (c) => const LaporanPinjamanScreen(
+                        initialFilterStatus: 'pending',
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                'Simpanan',
+                pendingSimpanan,
+                Colors.blue,
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (c) => const LaporanSimpananScreen(
+                        initialFilterStatus: 'pending',
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionCard(
+    String label,
+    int count,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }

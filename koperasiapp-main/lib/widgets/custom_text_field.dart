@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class CustomTextField extends StatelessWidget {
   final String label;
@@ -8,6 +7,8 @@ class CustomTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final void Function(String?)? onSaved;
   final IconData? icon;
+  final TextEditingController? controller;
+  final int maxLines;
 
   const CustomTextField({
     super.key,
@@ -17,36 +18,21 @@ class CustomTextField extends StatelessWidget {
     this.validator,
     this.onSaved,
     this.icon,
+    this.controller,
+    this.maxLines = 1,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
+        controller: controller,
+        maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: GoogleFonts.poppins(color: Colors.grey[600]),
-          prefixIcon: icon != null ? Icon(icon, color: Theme.of(context).primaryColor) : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(20),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          prefixIcon: icon != null ? Icon(icon) : null,
+          // Theme handles borders and colors now
         ),
         obscureText: obscureText,
         keyboardType: keyboardType,

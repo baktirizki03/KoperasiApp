@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
@@ -74,7 +75,10 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
     } catch (e) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -117,6 +121,59 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Pinjaman berhasil ditolak'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.of(context).pop(true);
+      } catch (e) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _requestRevision() async {
+    final alasan = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Minta Perbaikan'),
+        content: TextField(
+          controller: _alasanController,
+          decoration: const InputDecoration(
+            hintText: 'Jelaskan apa yang perlu diperbaiki...',
+            labelText: 'Catatan Perbaikan',
+          ),
+          maxLines: 3,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_alasanController.text.isNotEmpty) {
+                Navigator.of(ctx).pop(_alasanController.text);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Kirim Permintaan'),
+          ),
+        ],
+      ),
+    );
+
+    if (alasan != null && alasan.isNotEmpty) {
+      _showLoadingDialog();
+      try {
+        await _apiService.requestRevision(widget.pinjamanId, alasan);
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Permintaan perbaikan berhasil dikirim'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -324,6 +381,10 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                           anggota['pendidikan'] ?? '-',
                         ),
                         _buildDetailRow(
+                          'Alamat Domisili',
+                          anggota['domisili'] ?? '-',
+                        ),
+                        _buildDetailRow(
                           'Status Pernikahan',
                           anggota['status_pernikahan'] ?? '-',
                         ),
@@ -374,7 +435,7 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.home),
-                    title: const Text('Alamat Tinggal'),
+                    title: const Text('Alamat Saudara'),
                     subtitle: Text('${pinjaman['alamat_tempat_tinggal']}'),
                   ),
                   ListTile(
@@ -385,7 +446,19 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                   ListTile(
                     leading: const Icon(Icons.family_restroom),
                     title: const Text('Saudara Terdekat'),
-                    subtitle: Text('${pinjaman['nama_saudara_terdekat']}'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${pinjaman['nama_saudara_terdekat']}'),
+                        Text(
+                          'Telp: ${pinjaman['no_telepon_saudara'] ?? '-'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
                   const Divider(),
@@ -454,27 +527,44 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
 
                 const SizedBox(height: 32),
                 if (isPending && !isKetua)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  Column(
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _rejectPinjaman,
-                          icon: const Icon(Icons.close),
-                          label: const Text('Tolak'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _rejectPinjaman,
+                              icon: const Icon(Icons.close),
+                              label: const Text('Tolak'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _approvePinjaman,
+                              icon: const Icon(Icons.check),
+                              label: const Text('Setujui'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _approvePinjaman,
-                          icon: const Icon(Icons.check),
-                          label: const Text('Setujui'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _requestRevision,
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Minta Perbaikan'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.orange,
+                            side: const BorderSide(color: Colors.orange),
                           ),
                         ),
                       ),
@@ -510,7 +600,7 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Jatuh Tempo: ${angsuran['tanggal_jatuh_tempo']}',
+                                    'Jatuh Tempo: ${DateFormat('dd MMM yyyy').format(DateTime.parse(angsuran['tanggal_jatuh_tempo']))}',
                                   ),
                                   if (angsuran['status'] ==
                                       'menunggu_konfirmasi')

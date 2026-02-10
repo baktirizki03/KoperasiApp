@@ -16,9 +16,10 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
   final ApiService _apiService = ApiService();
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _allData = [];
-  List<dynamic> _filteredData = [];
+  // Stores grouped data by Loan ID: { 'pinjaman': {}, 'anggota': {}, 'angsurans': [], 'status_laporan': '', 'progress': '' }
+  List<Map<String, dynamic>> _groupedData = [];
   bool _isLoading = true;
-  String _selectedStatus = 'Semua';
+  String _filterStatusLaporan = 'Aktif'; // Default filter
 
   @override
   void initState() {
@@ -31,18 +32,19 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final role = authProvider.role?.toLowerCase();
+      List<dynamic> rawData = [];
 
-      List<dynamic> data = [];
+      // Use getPinjamanKetua to get LOANS directly.
+      // This ensures we see all loans, even if they don't have installments generated yet (or if installment endpoint is buggy).
       if (role == 'ketua') {
-        data = await _apiService.getAngsuranKetua();
+        rawData = await _apiService.getPinjamanKetua();
       } else {
-        // Fallback or implement finding specific endpoint for other roles if needed
-        data = [];
+        rawData = [];
       }
 
       setState(() {
-        _allData = data;
-        _filterData();
+        _allData = rawData;
+        _groupData();
         _isLoading = false;
       });
     } catch (e) {
@@ -55,31 +57,129 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
     }
   }
 
-  void _filterData() {
+  void _groupData() {
+    // Map<PinjamanID, GroupData>
+    final Map<String, Map<String, dynamic>> groups = {};
     final query = _searchController.text.toLowerCase();
+
+    // _allData is now List of LOANS (Pinjaman)
+    for (var loan in _allData) {
+      final pinjaman = loan;
+      final anggota = loan['anggota'] ?? {};
+      final pinjamanId = (loan['id'] ?? 'unknown').toString();
+
+      // Retrieve installments from the loan object
+      // Handle potential key variations
+      final List<dynamic> angsurans =
+          (loan['angsuran'] ?? loan['angsurans'] ?? []) as List<dynamic>;
+
+      // Filter Logic (Search by Name or Member ID)
+      final nama = (anggota['nama_lengkap'] ?? '').toString().toLowerCase();
+      final noAnggota = (anggota['nomor_anggota'] ?? '')
+          .toString()
+          .toLowerCase();
+
+      if (query.isNotEmpty &&
+          !nama.contains(query) &&
+          !noAnggota.contains(query)) {
+        continue;
+      }
+
+      // Check Status: Only show Active/Lunas loans (ignore Pending/Rejected for Installment Report)
+      final statusPinjaman = (loan['status'] ?? '').toString().toLowerCase();
+      if (statusPinjaman != 'disetujui' && statusPinjaman != 'lunas') {
+        continue;
+      }
+
+      groups[pinjamanId] = {
+        'pinjaman': pinjaman,
+        'anggota': anggota,
+        'angsurans': angsurans,
+        // Will calculate these below
+        'status_laporan': 'Lancar',
+        'progress': '0/0',
+      };
+    }
+
+    // Process Status and Progress for each group
+    List<Map<String, dynamic>> processedList = [];
+
+    for (var key in groups.keys) {
+      final group = groups[key]!;
+      final angsurans = group['angsurans'] as List<dynamic>;
+      final pinjaman = group['pinjaman'];
+
+      // Basic info
+      int total = angsurans.length;
+      // If angsurans list is empty, try to use 'lama_angsuran' from pinjaman as total
+      if (total == 0) {
+        total =
+            int.tryParse((pinjaman['lama_angsuran'] ?? '0').toString()) ?? 0;
+      }
+
+      int paid = 0;
+      bool isMenunggak = false;
+
+      // Sort Angsuran by angsuran_ke
+      angsurans.sort((a, b) {
+        final seqA = int.tryParse(a['angsuran_ke'].toString()) ?? 0;
+        final seqB = int.tryParse(b['angsuran_ke'].toString()) ?? 0;
+        return seqA.compareTo(seqB);
+      });
+
+      for (var ang in angsurans) {
+        final status = (ang['status'] ?? '').toString().toLowerCase();
+        final dueDateStr = ang['tanggal_jatuh_tempo'];
+
+        if (status == 'lunas' || status == 'disetujui') {
+          paid++;
+        } else {
+          // Check if overdue
+          if (dueDateStr != null) {
+            final dueDate = DateTime.tryParse(dueDateStr);
+            if (dueDate != null && dueDate.isBefore(DateTime.now())) {
+              isMenunggak = true;
+            }
+          }
+        }
+      }
+
+      group['progress'] = '$paid/$total Bulan';
+      group['status_laporan'] = isMenunggak ? 'Menunggak' : 'Lancar';
+
+      // Override status based on Pinjaman Status or Count
+      final statusPinjaman = (pinjaman['status'] ?? '')
+          .toString()
+          .toLowerCase();
+      if (statusPinjaman == 'lunas' || (paid == total && total > 0)) {
+        group['status_laporan'] = 'Selesai';
+        // Ensure progress shows full if lunas
+        if (paid < total) group['progress'] = '$total/$total Bulan';
+      }
+
+      // Filter based on _filterStatusLaporan
+      bool include = false;
+      if (_filterStatusLaporan == 'Semua') {
+        include = true;
+      } else if (_filterStatusLaporan == 'Selesai') {
+        if (group['status_laporan'] == 'Selesai') include = true;
+      } else {
+        // Aktif (Lancar or Menunggak)
+        if (group['status_laporan'] != 'Selesai') include = true;
+      }
+
+      if (include) {
+        processedList.add(group);
+      }
+    }
+
     setState(() {
-      _filteredData = _allData.where((item) {
-        final anggota = item['anggota'] ?? {};
-        final nama = (anggota['nama_lengkap'] ?? '').toString().toLowerCase();
-        final noAnggota = (anggota['nomor_anggota'] ?? '')
-            .toString()
-            .toLowerCase();
-        final status = (item['status'] ?? '').toString().toLowerCase();
-
-        final matchesSearch = nama.contains(query) || noAnggota.contains(query);
-        final matchesStatus =
-            _selectedStatus == 'Semua' ||
-            status == _selectedStatus.toLowerCase();
-
-        return matchesSearch && matchesStatus;
-      }).toList();
+      _groupedData = processedList;
     });
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void _filterData() {
+    _groupData();
   }
 
   @override
@@ -99,181 +199,253 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
               children: [
                 _buildFilterHeader(),
                 Expanded(
-                  child: _filteredData.isEmpty
-                      ? const Center(child: Text('Data tidak ditemukan'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _filteredData.length,
-                          itemBuilder: (context, index) {
-                            final pinjaman = _filteredData[index];
-                            final anggota = pinjaman['anggota'] ?? {};
-                            final angsurans =
-                                pinjaman['angsurans'] as List? ?? [];
-
-                            // Hitung progress
-                            final totalAngsuran = angsurans.length;
-                            final lunasCount = angsurans
-                                .where((a) => a['status'] == 'lunas')
-                                .length;
-                            final progress = totalAngsuran > 0
-                                ? lunasCount / totalAngsuran
-                                : 0.0;
-
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.all(16),
-                                onTap: () =>
-                                    _showAngsuranDetail(pinjaman, angsurans),
-                                title: Text(
-                                  anggota['nama_lengkap'] ??
-                                      'Nama Tidak Diketahui',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'No. Anggota: ${anggota['nomor_anggota'] ?? '-'}',
-                                    ),
-                                    Text(
-                                      'Total Pinjaman: ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(int.tryParse((pinjaman['nominal'] ?? '0').toString().split('.')[0]) ?? 0)}',
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: LinearProgressIndicator(
-                                            value: progress,
-                                            backgroundColor: Colors.grey[200],
-                                            color: progress == 1.0
-                                                ? Colors.green
-                                                : Colors.blue,
-                                            minHeight: 8,
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          '$lunasCount/$totalAngsuran Bulan',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                trailing: const Icon(Icons.chevron_right),
-                              ),
-                            );
-                          },
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
+                        child: Theme(
+                          data: Theme.of(
+                            context,
+                          ).copyWith(dividerColor: Colors.transparent),
+                          child: DataTable(
+                            headingRowColor: WidgetStateProperty.all(
+                              Theme.of(
+                                context,
+                              ).colorScheme.primary.withOpacity(0.1),
+                            ),
+                            border: TableBorder(
+                              horizontalInside: BorderSide(
+                                color: Colors.grey.shade200,
+                                width: 1,
+                              ),
+                            ),
+                            columnSpacing: 20,
+                            columns: [
+                              DataColumn(label: _buildColumnHeader('No')),
+                              DataColumn(
+                                label: _buildColumnHeader('No. Anggota'),
+                              ),
+                              DataColumn(
+                                label: _buildColumnHeader('Nama Anggota'),
+                              ),
+                              DataColumn(label: _buildColumnHeader('Progres')),
+                              DataColumn(label: _buildColumnHeader('Status')),
+                              DataColumn(label: _buildColumnHeader('Aksi')),
+                            ],
+                            rows: List<DataRow>.generate(_groupedData.length, (
+                              index,
+                            ) {
+                              final group = _groupedData[index];
+                              final anggota = group['anggota'];
+
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text('${index + 1}')),
+                                  DataCell(
+                                    Text(anggota['nomor_anggota'] ?? '-'),
+                                  ),
+                                  DataCell(
+                                    Text(anggota['nama_lengkap'] ?? '-'),
+                                  ),
+                                  DataCell(Text(group['progress'])),
+                                  DataCell(
+                                    _buildLaporanStatusBadge(
+                                      group['status_laporan'],
+                                    ),
+                                  ),
+                                  DataCell(
+                                    ElevatedButton(
+                                      onPressed: () => _showDetailDialog(group),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue,
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
+                                        minimumSize: Size(0, 30),
+                                      ),
+                                      child: const Text(
+                                        'Detail',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
     );
   }
 
-  void _showAngsuranDetail(
-    Map<String, dynamic> pinjaman,
-    List<dynamic> angsurans,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  Widget _buildLaporanStatusBadge(String status) {
+    Color color;
+    switch (status) {
+      case 'Lancar':
+        color = Colors.green;
+        break;
+      case 'Menunggak':
+        color = Colors.red;
+        break;
+      case 'Selesai':
+        color = Colors.blue;
+        break;
+      default:
+        color = Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color),
       ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Detail Angsuran',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
+      child: Text(
+        status.toUpperCase(),
+        style: GoogleFonts.poppins(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  void _showDetailDialog(Map<String, dynamic> group) {
+    final anggota = group['anggota'];
+    final pinjaman = group['pinjaman'];
+    final angsurans = group['angsurans'] as List<dynamic>;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Rincian Angsuran',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+            ),
+            Text(
+              '${anggota['nama_lengkap']} - ${anggota['nomor_anggota']}',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Pinjaman: ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(double.tryParse(pinjaman['nominal'].toString()) ?? 0)}',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: angsurans.length,
+            separatorBuilder: (ctx, i) => Divider(height: 1),
+            itemBuilder: (ctx, index) {
+              final item = angsurans[index];
+              final status = (item['status'] ?? '').toString().toLowerCase();
+              final isPaid = status == 'lunas' || status == 'disetujui';
+
+              // Check overdue for individual item if not paid
+              bool isOverdue = false;
+              if (!isPaid) {
+                final dueDate = DateTime.tryParse(
+                  item['tanggal_jatuh_tempo'] ?? '',
+                );
+                if (dueDate != null && dueDate.isBefore(DateTime.now())) {
+                  isOverdue = true;
+                }
+              }
+
+              return ListTile(
+                dense: true,
+                leading: CircleAvatar(
+                  radius: 12,
+                  backgroundColor: Colors.grey[200],
+                  child: Text(
+                    '${item['angsuran_ke']}',
+                    style: TextStyle(fontSize: 10),
                   ),
                 ),
-                Expanded(
-                  child: ListView.separated(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    itemCount: angsurans.length,
-                    separatorBuilder: (context, index) => const Divider(),
-                    itemBuilder: (context, index) {
-                      final item = angsurans[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.1),
-                          child: Text('${item['angsuran_ke']}'),
-                        ),
-                        title: Text(
-                          NumberFormat.currency(
-                            locale: 'id_ID',
-                            symbol: 'Rp ',
-                            decimalDigits: 0,
-                          ).format(
-                            int.tryParse(
-                                  (item['jumlah_angsuran'] ?? '0')
-                                      .toString()
-                                      .split('.')[0],
-                                ) ??
-                                0,
-                          ),
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Jatuh Tempo: ${item['tanggal_jatuh_tempo']}',
-                          style: GoogleFonts.poppins(fontSize: 12),
-                        ),
-                        trailing: _buildStatusBadge(item['status']),
-                      );
-                    },
+                title: Text(
+                  NumberFormat.currency(
+                    locale: 'id_ID',
+                    symbol: 'Rp ',
+                    decimalDigits: 0,
+                  ).format(
+                    double.tryParse(item['jumlah_angsuran'].toString()) ?? 0,
+                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                subtitle: Text(
+                  'Jatuh Tempo: ${item['tanggal_jatuh_tempo'] ?? '-'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isOverdue ? Colors.red : Colors.grey,
                   ),
                 ),
-              ],
-            );
-          },
-        );
-      },
+                trailing: _buildStatusBadgeMini(
+                  isPaid ? 'Lunas' : (isOverdue ? 'Menunggak' : 'Belum Bayar'),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Tutup')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadgeMini(String status) {
+    Color color;
+    if (status == 'Lunas')
+      color = Colors.green;
+    else if (status == 'Menunggak')
+      color = Colors.red;
+    else
+      color = Colors.orange;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          fontSize: 10,
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
@@ -287,10 +459,12 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
           Row(
             children: [
               Expanded(
+                flex: 2,
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
                     labelText: 'Cari Anggota',
+                    hintText: 'Nama / No Anggota',
                     prefixIcon: const Icon(Icons.search),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -298,6 +472,38 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                   onChanged: (val) => _filterData(),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 1,
+                child: DropdownButtonFormField<String>(
+                  value: _filterStatusLaporan,
+                  decoration: InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  items: ['Aktif', 'Selesai', 'Semua'].map((String val) {
+                    return DropdownMenuItem<String>(
+                      value: val,
+                      child: Text(
+                        val,
+                        style: GoogleFonts.poppins(fontSize: 14),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _filterStatusLaporan = val;
+                        _groupData();
+                      });
+                    }
+                  },
                 ),
               ),
             ],
@@ -313,42 +519,6 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
       style: GoogleFonts.poppins(
         fontWeight: FontWeight.bold,
         color: Colors.black87,
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String? status) {
-    Color color;
-    switch (status?.toLowerCase()) {
-      case 'belum_lunas':
-      case 'belum bayar':
-        color = Colors.orange;
-        break;
-      case 'lunas':
-      case 'disetujui':
-        color = Colors.green;
-        break;
-      case 'menunggu_konfirmasi':
-        color = Colors.blue;
-        break;
-      default:
-        color = Colors.grey;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color),
-      ),
-      child: Text(
-        (status ?? '-').replaceAll('_', ' ').toUpperCase(),
-        style: GoogleFonts.poppins(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }

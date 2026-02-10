@@ -21,69 +21,92 @@ class MyApp extends StatelessWidget {
       create: (ctx) => AuthProvider(),
       child: Consumer<AuthProvider>(
         builder: (ctx, auth, _) => MaterialApp(
+          debugShowCheckedModeBanner: false,
           title: 'Aplikasi Koperasi',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF1565C0), // Official Blue
-              primary: const Color(0xFF1565C0),
-              secondary: const Color(0xFF2E7D32), // Coop Green
+              seedColor: const Color(0xFF0D47A1), // Deep Royal Blue
+              primary: const Color(0xFF0D47A1),
+              secondary: const Color(0xFFFFC107), // Amber/Gold
               surface: Colors.white,
-              background: const Color(
-                0xFFF5F7FA,
-              ), // Slightly more neutral background
+              background: const Color(0xFFF8F9FA), // Off-White
+              error: const Color(0xFFB00020),
             ),
             useMaterial3: true,
-            textTheme: GoogleFonts.poppinsTextTheme(),
+            scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+            textTheme: GoogleFonts.poppinsTextTheme().apply(
+              bodyColor: const Color(0xFF424242), // Slate Grey
+              displayColor: const Color(0xFF1A237E), // Dark Navy
+            ),
             appBarTheme: AppBarTheme(
-              backgroundColor: const Color(0xFF1565C0), // Blue AppBar
-              foregroundColor: Colors.white,
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF1A237E),
               elevation: 0,
               centerTitle: true,
+              iconTheme: const IconThemeData(color: Color(0xFF1A237E)),
               titleTextStyle: GoogleFonts.poppins(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: const Color(0xFF1A237E),
               ),
             ),
+            /*
+            cardTheme: CardTheme(
+              color: Colors.white,
+              elevation: 2,
+              shadowColor: Colors.black.withOpacity(0.05),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              margin: const EdgeInsets.symmetric(vertical: 8),
+            ),
+            */
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32), // Green Buttons
+                backgroundColor: const Color(0xFF0D47A1),
                 foregroundColor: Colors.white,
-                elevation: 3,
+                elevation: 4,
+                shadowColor: const Color(0xFF0D47A1).withOpacity(0.3),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 30,
-                  vertical: 15,
+                  horizontal: 24,
+                  vertical: 16,
                 ),
                 textStyle: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
             inputDecorationTheme: InputDecorationTheme(
               filled: true,
-              fillColor: Colors.white,
+              fillColor: const Color(0xFFF5F5F5),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
+              ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: const BorderSide(
-                  color: Color(0xFF1565C0),
-                  width: 2,
+                  color: Color(0xFF0D47A1),
+                  width: 1.5,
                 ),
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
+              labelStyle: const TextStyle(color: Color(0xFF757575)),
+              floatingLabelStyle: const TextStyle(
+                color: Color(0xFF0D47A1),
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

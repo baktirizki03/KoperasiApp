@@ -330,7 +330,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Text(
                   isAngsuran
                       ? 'Tenor: ${item['tenor_cicilan']} Bulan'
-                      : '${item['tanggal'] ?? '-'}',
+                      : (item['tanggal'] != null
+                            ? DateFormat(
+                                'dd MMM yyyy',
+                              ).format(DateTime.parse(item['tanggal']))
+                            : '-'),
                   style: TextStyle(color: Colors.grey[500], fontSize: 12),
                 ),
                 Text(

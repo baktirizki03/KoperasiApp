@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -73,149 +74,176 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final deviceSize = MediaQuery.of(context).size;
+    // Premium Design: Clean, centered, ample whitespace.
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: Stack(
-        children: [
-          Positioned(
-            top: -50,
-            right: -50,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ).animate().scale(delay: 200.ms, duration: 600.ms).fadeIn(),
-          Positioned(
-            bottom: -50,
-            left: -50,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ).animate().scale(delay: 400.ms, duration: 600.ms).fadeIn(),
-
-          Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Container(
-                    padding: EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: ClipOval(
+      backgroundColor: Theme.of(context).colorScheme.background,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Logo Section
+              Center(
+                child: Container(
+                  width: 120, // Slightly larger
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05), // Softer shadow
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    // Padding inside logo if needed, otherwise fit cover
+                    child: Padding(
+                      padding: const EdgeInsets.all(
+                        12.0,
+                      ), // Give logo room to breathe if it's an icon
                       child: Image.asset(
                         'assets/images/logo.jpg',
-                        width: 120, // Adjusted size
-                        height: 120,
-                        fit: BoxFit.cover,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Fallback Icon if asset missing
+                          return Icon(
+                            Icons.account_balance_wallet,
+                            size: 50,
+                            color: Theme.of(context).primaryColor,
+                          );
+                        },
                       ),
                     ),
-                  ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
-
-                  SizedBox(height: 30),
-
-                  Text(
-                    'Selamat Datang!',
-                    style: GoogleFonts.poppins(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.3, end: 0),
-
-                  Text(
-                    'Silakan login untuk melanjutkan',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
-                  ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.3, end: 0),
-
-                  SizedBox(height: 40),
-
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        CustomTextField(
-                              label: 'Email',
-                              keyboardType: TextInputType.emailAddress,
-                              icon: Icons.email_rounded,
-                              validator: (value) {
-                                if (value == null ||
-                                    value.isEmpty ||
-                                    !value.contains('@')) {
-                                  return 'Masukkan email yang valid.';
-                                }
-                                return null;
-                              },
-                              onSaved: (value) {
-                                _email = value!;
-                              },
-                            )
-                            .animate()
-                            .fadeIn(delay: 600.ms)
-                            .slideX(begin: -0.2, end: 0),
-
-                        CustomTextField(
-                              label: 'Password',
-                              obscureText: true,
-                              icon: Icons.lock_rounded,
-                              validator: (value) {
-                                if (value == null ||
-                                    value.isEmpty ||
-                                    value.length < 5) {
-                                  return 'Password minimal 5 karakter.';
-                                }
-                                return null;
-                              },
-                              onSaved: (value) {
-                                _password = value!;
-                              },
-                            )
-                            .animate()
-                            .fadeIn(delay: 700.ms)
-                            .slideX(begin: 0.2, end: 0),
-
-                        SizedBox(height: 30),
-
-                        CustomButton(
-                          text: 'LOGIN',
-                          onPressed: _submit,
-                          isLoading: _isLoading,
-                          icon: Icons.login_rounded,
-                        ).animate().fadeIn(delay: 800.ms).scale(),
-                      ],
-                    ),
                   ),
-                ],
+                ),
+              ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
+
+              const SizedBox(height: 40),
+
+              // Welcome Text
+              Text(
+                'Selamat Datang',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1A237E), // Dark Navy
+                  letterSpacing: -0.5,
+                ),
+              ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
+
+              const SizedBox(height: 8),
+
+              Text(
+                'Aplikasi Koperasi Digital',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: const Color(0xFF757575), // Cool Grey
+                  fontWeight: FontWeight.w400,
+                ),
+              ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, end: 0),
+
+              const SizedBox(height: 48),
+
+              // Login Form
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: <Widget>[
+                    CustomTextField(
+                          label: 'Email',
+                          keyboardType: TextInputType.emailAddress,
+                          icon: Icons.email_outlined, // Outlined looks cleaner
+                          validator: (value) {
+                            if (value == null ||
+                                value.isEmpty ||
+                                !value.contains('@')) {
+                              return 'Masukkan email yang valid.';
+                            }
+                            return null;
+                          },
+                          onSaved: (value) {
+                            _email = value!;
+                          },
+                        )
+                        .animate()
+                        .fadeIn(delay: 400.ms)
+                        .slideX(begin: -0.1, end: 0),
+
+                    CustomTextField(
+                          label: 'Password',
+                          obscureText: true,
+                          icon: Icons.lock_outline_rounded,
+                          validator: (value) {
+                            if (value == null ||
+                                value.isEmpty ||
+                                value.length < 5) {
+                              return 'Password minimal 5 karakter.';
+                            }
+                            return null;
+                          },
+                          onSaved: (value) {
+                            _password = value!;
+                          },
+                        )
+                        .animate()
+                        .fadeIn(delay: 500.ms)
+                        .slideX(begin: 0.1, end: 0),
+
+                    const SizedBox(height: 32),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56, // Taller button
+                      child: CustomButton(
+                        text: 'MASUK',
+                        onPressed: _submit,
+                        isLoading: _isLoading,
+                        icon: Icons.login,
+                      ),
+                    ).animate().fadeIn(delay: 600.ms).scale(),
+
+                    const SizedBox(height: 24),
+
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+                      child: RichText(
+                        text: TextSpan(
+                          text: 'Belum punya akun? ',
+                          style: GoogleFonts.poppins(
+                            color: const Color(0xFF757575),
+                            fontSize: 14,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: 'Daftar Sekarang',
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -145,101 +145,118 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ).animate().fadeIn().slideX(),
 
                 const SizedBox(height: 20),
-                Text(
-                  'Info Pribadi',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+
+                // --- PROFILE PHOTO HEADER ---
+                Center(
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.2),
+                              spreadRadius: 2,
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 60,
+                          backgroundColor: Colors.grey[200],
+                          backgroundImage:
+                              anggota != null &&
+                                  anggota['foto_profile_path'] != null
+                              ? NetworkImage(
+                                  '${_apiService.storageUrl}/${anggota['foto_profile_path']}',
+                                )
+                              : null,
+                          child:
+                              anggota == null ||
+                                  anggota['foto_profile_path'] == null
+                              ? Icon(
+                                  Icons.person_rounded,
+                                  size: 60,
+                                  color: Colors.grey[400],
+                                )
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate().scale(),
+                const SizedBox(height: 10),
+                Center(
+                  child: Text(
+                    anggota?['nama_lengkap'] ?? user['email'],
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(height: 10),
+                Center(
+                  child: Text(
+                    anggota?['nomor_anggota'] ?? 'Belum ada nomor anggota',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
 
-                _buildProfileItem(
-                  Icons.badge_rounded,
-                  'Nomor Anggota',
-                  anggota?['nomor_anggota'] ?? 'Tidak tersedia',
-                  0,
-                ),
-                _buildProfileItem(
-                  Icons.person_outline_rounded,
-                  'Nama Lengkap',
-                  anggota?['nama_lengkap'] ?? 'Tidak tersedia',
-                  1,
-                ),
-                _buildProfileItem(
-                  Icons.email_outlined,
-                  'Email',
-                  user['email'] ?? 'Tidak tersedia',
-                  2,
-                ),
-                _buildProfileItem(
-                  Icons.cake_outlined,
-                  'Tempat, Tanggal Lahir',
-                  '${anggota?['tempat_lahir'] ?? '-'}, ${anggota?['tanggal_lahir'] ?? '-'}',
-                  3,
-                ),
-                _buildProfileItem(
-                  anggota?['jenis_kelamin'] == 'laki-laki'
-                      ? Icons.male_rounded
-                      : Icons.female_rounded,
-                  'Jenis Kelamin',
-                  (anggota?['jenis_kelamin'] ?? 'Tidak tersedia')
-                      .toString()
-                      .toUpperCase(),
-                  4,
-                ),
+                // --- GROUP: INFO PRIBADI ---
+                _buildCardGroup('Informasi Pribadi', [
+                  _buildProfileRow(
+                    'TTL',
+                    '${anggota?['tempat_lahir'] ?? '-'}, ${anggota?['tanggal_lahir'] ?? '-'}',
+                  ),
+                  _buildProfileRow(
+                    'Jenis Kelamin',
+                    (anggota?['jenis_kelamin'] ?? '-').toString().toUpperCase(),
+                  ),
+                  _buildProfileRow('Agama', anggota?['agama'] ?? '-'),
+                  _buildProfileRow('Pendidikan', anggota?['pendidikan'] ?? '-'),
+                  _buildProfileRow(
+                    'Status',
+                    anggota?['status_pernikahan'] ?? '-',
+                  ),
+                  _buildProfileRow(
+                    'Ibu Kandung',
+                    anggota?['nama_ibu_kandung'] ?? '-',
+                  ),
+                ]),
 
-                _buildProfileItem(
-                  Icons.phone_outlined,
-                  'No. Telepon',
-                  anggota?['no_telepon'] ?? 'Tidak tersedia',
-                  6,
-                ),
-                _buildProfileItem(
-                  Icons.badge_outlined,
-                  'No. KTP / SIM',
-                  anggota?['nomor_ktp'] ?? 'Tidak tersedia',
-                  7,
-                ),
-                _buildProfileItem(
-                  Icons.location_on_outlined,
-                  'Alamat',
-                  anggota?['alamat'] ??
-                      anggota?['domisili'] ??
-                      'Tidak tersedia',
-                  8,
-                ),
-                _buildProfileItem(
-                  Icons.work_outline_rounded,
-                  'Pekerjaan',
-                  anggota?['pekerjaan'] ?? 'Tidak tersedia',
-                  9,
-                ),
-                _buildProfileItem(
-                  Icons.school_outlined,
-                  'Pendidikan Terakhir',
-                  anggota?['pendidikan'] ?? 'Tidak tersedia',
-                  10,
-                ),
-                _buildProfileItem(
-                  Icons
-                      .mosque_outlined, // Using generic religious icon lookalike or star
-                  'Agama',
-                  anggota?['agama'] ?? 'Tidak tersedia',
-                  11,
-                ),
-                _buildProfileItem(
-                  Icons.family_restroom_rounded,
-                  'Status Pernikahan',
-                  anggota?['status_pernikahan'] ?? 'Tidak tersedia',
-                  12,
-                ),
-                _buildProfileItem(
-                  Icons.face_3_outlined,
-                  'Nama Ibu Kandung',
-                  anggota?['nama_ibu_kandung'] ?? 'Tidak tersedia',
-                  13,
-                ),
+                // --- GROUP: KONTAK & ALAMAT ---
+                _buildCardGroup('Kontak & Alamat', [
+                  _buildProfileRow('Email', user['email'] ?? '-'),
+                  _buildProfileRow('No. HP', anggota?['no_telepon'] ?? '-'),
+                  _buildProfileRow('No. KTP', anggota?['nomor_ktp'] ?? '-'),
+                  _buildProfileRow(
+                    'Alamat',
+                    anggota?['alamat'] ?? anggota?['domisili'] ?? '-',
+                  ),
+                ]),
+
+                // --- GROUP: PEKERJAAN ---
+                _buildCardGroup('Pekerjaan', [
+                  _buildProfileRow('Pekerjaan', anggota?['pekerjaan'] ?? '-'),
+                  _buildProfileRow('Departemen', anggota?['departemen'] ?? '-'),
+                ]),
+
+                // --- GROUP: REKENING BANK ---
+                _buildCardGroup('Rekening Bank', [
+                  _buildProfileRow('Nama Bank', anggota?['nama_bank'] ?? '-'),
+                  _buildProfileRow(
+                    'No. Rekening',
+                    anggota?['no_rekening'] ?? '-',
+                  ),
+                ]),
+
+                const SizedBox(height: 80), // Bottom padding for FAB
               ],
             ),
           );
@@ -289,17 +306,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileItem(
-    IconData icon,
-    String title,
-    String subtitle,
-    int index,
-  ) {
+  Widget _buildCardGroup(String title, List<Widget> children) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 15),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.05),
@@ -309,29 +321,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            shape: BoxShape.circle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Text(
+              title.toUpperCase(),
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[500],
+                letterSpacing: 1.2,
+              ),
+            ),
           ),
-          child: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        ),
-        title: Text(
-          title,
-          style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
-          ),
-        ),
+          const Divider(height: 1),
+          ...children,
+        ],
       ),
-    ).animate().fadeIn(delay: (index * 50).ms).slideX();
+    ).animate().fadeIn().slideY(begin: 0.1);
+  }
+
+  Widget _buildProfileRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120, // Fixed width for labels
+            child: Text(
+              label,
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildNotificationBanner(

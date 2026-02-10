@@ -3,6 +3,7 @@ import '../../services/api_service.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'anggota_form_screen.dart';
+import 'anggota_detail_screen.dart';
 
 class AnggotaListScreen extends StatefulWidget {
   const AnggotaListScreen({super.key});
@@ -96,7 +97,9 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal menghapus: $e'),
+            content: Text(
+              'Gagal menghapus: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -152,49 +155,149 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     );
   }
 
+  // --- Fungsi Verifikasi & Tolak ---
   void _showVerificationDialog(Map<String, dynamic> anggota) {
     String ktpUrl = anggota['ktp_path'] ?? '';
     if (!ktpUrl.startsWith('http')) {
-      // Sesuaikan base URL dengan environment Anda.
-      // Jika menggunakan emulator android: http://10.0.2.2:8000/storage/
       ktpUrl = "http://10.0.2.2:8000/storage/$ktpUrl";
     }
+
+    final dataList = [
+      {'label': 'Nama Lengkap', 'value': anggota['nama_lengkap']},
+      {'label': 'NIK (KTP)', 'value': anggota['nomor_ktp']},
+      {
+        'label': 'TTL',
+        'value': '${anggota['tempat_lahir']}, ${anggota['tanggal_lahir']}',
+      },
+      {'label': 'Alamat', 'value': anggota['domisili']},
+      {'label': 'Pekerjaan', 'value': anggota['pekerjaan']},
+    ];
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Verifikasi Anggota'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Data Pendaftaran:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 5),
+              ...dataList.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 100,
+                        child: Text(
+                          '${item['label']}:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          '${item['value'] ?? '-'}',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Divider(height: 20),
+              Text('Foto KTP:', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 5),
+              Container(
+                height: 200,
+                width: double.maxFinite,
+                color: Colors.grey[200],
+                child: Image.network(
+                  ktpUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (ctx, error, stackTrace) {
+                    return Center(
+                      child: Text(
+                        'Gagal memuat KTP',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Pastikan data di formulir SAMA dengan data di Foto KTP sebelum menyetujui.',
+                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4.0),
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _showRejectDialog(anggota['id']);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: BorderSide(color: Colors.red),
+                    ),
+                    child: Text('Tolak'),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4.0),
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      await _verifyAnggota(anggota['id']);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                    ),
+                    child: Text('Setujui'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRejectDialog(int id) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Tolak Verifikasi'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Nama: ${anggota['nama_lengkap']}'),
-            SizedBox(height: 10),
-            Text('Foto KTP:'),
-            SizedBox(height: 5),
-            Container(
-              height: 200,
-              width: double.maxFinite,
-              color: Colors.grey[200],
-              child: Image.network(
-                ktpUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (ctx, error, stackTrace) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        'Gagal memuat gambar.\nURL: $ktpUrl',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            Text('Masukkan alasan penolakan (Wajib):'),
+            TextField(
+              controller: reasonController,
+              decoration: InputDecoration(hintText: 'Misal: Foto KTP buram'),
+              maxLines: 2,
             ),
-            SizedBox(height: 15),
-            Text('Apakah data ini valid dan sesuai?'),
           ],
         ),
         actions: [
@@ -204,14 +307,20 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              if (reasonController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Alasan harus diisi!'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
               Navigator.of(ctx).pop();
-              await _verifyAnggota(anggota['id']);
+              await _rejectAnggota(id, reasonController.text);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Setujui (Verify)'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('Kirim Penolakan'),
           ),
         ],
       ),
@@ -231,7 +340,33 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal verifikasi: $e'),
+          content: Text(
+            'Gagal verifikasi: ${e.toString().replaceAll('Exception: ', '')}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _rejectAnggota(int id, String reason) async {
+    try {
+      await _apiService.rejectKtp(id, reason);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Verifikasi ditolak. Member perlu daftar ulang/hubungi admin.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      _loadAnggota();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Gagal menolak: ${e.toString().replaceAll('Exception: ', '')}',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -244,7 +379,7 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
       builder: (ctx) => AlertDialog(
         title: Text('Reset Password'),
         content: Text(
-          'Apakah Anda yakin ingin mereset password anggota "${anggota['nama_lengkap']}" menjadi "koperasi123"?',
+          'Apakah Anda yakin ingin mereset password anggota "${anggota['nama_lengkap']}"? Password baru akan digenerate secara acak.',
         ),
         actions: [
           TextButton(
@@ -261,17 +396,30 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
 
     if (confirm == true) {
       try {
-        await _apiService.resetPasswordMember(anggota['id']);
+        final response = await _apiService.resetPasswordMember(anggota['id']);
+        // Response should contain the message from backend with the new password
+        final message = response['message'] ?? 'Password berhasil direset';
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Password berhasil direset'),
+            content: Text(message),
             backgroundColor: Colors.green,
+            duration: Duration(
+              seconds: 10,
+            ), // Show longer so they can read/copy
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
           ),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal reset password: $e'),
+            content: Text(
+              'Gagal reset password: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -376,6 +524,21 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
                   ),
                 SizedBox(width: 8),
 
+                // Detail Button
+                IconButton(
+                  icon: Icon(Icons.info, color: Colors.blue),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            AnggotaDetailScreen(anggota: anggota),
+                      ),
+                    );
+                  },
+                  tooltip: 'Detail Anggota',
+                ),
+
                 // Reset Password Button (Only Ketua)
                 if (isKetua)
                   IconButton(
@@ -384,13 +547,9 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
                     tooltip: 'Reset Password',
                   ),
 
-                // Edit Button (Only Ketua)
-                if (isKetua)
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () => _navigateToForm(anggota: anggota),
-                    tooltip: 'Edit Anggota',
-                  ),
+                // Edit Button (Only Admin - but currently disabled for Karyawan too per previous tasks)
+                // USER REQUEST: Ketua should NOT see Edit Button.
+                // if (isKetua) ... REMOVED
 
                 // Delete Button (Only Ketua)
                 if (isKetua)
@@ -419,7 +578,11 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
           }
           if (snapshot.hasError) {
             // ... error handling logic (simplified for brevity, keep existing logic if complex) ...
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error.toString().replaceAll('Exception: ', '')}',
+              ),
+            );
           }
 
           // Gunakan _filteredAnggota yang sudah di-update oleh logic lokal

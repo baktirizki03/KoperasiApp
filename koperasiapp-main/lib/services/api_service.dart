@@ -124,6 +124,35 @@ class ApiService {
     return response as Map<String, dynamic>;
   }
 
+  Future<dynamic> register(
+    Map<String, String> data,
+    List<int> ktpBytes,
+    String ktpFilename,
+  ) async {
+    return _safeCall(() async {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$_baseUrl/register'),
+      );
+      request.headers['Accept'] = 'application/json';
+      request.fields.addAll(data);
+
+      if (ktpBytes.isNotEmpty) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'ktp_path',
+            ktpBytes,
+            filename: ktpFilename,
+          ),
+        );
+      }
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    });
+  }
+
   Future<dynamic> get(String endpoint) async {
     return _safeCall(() async {
       String token = await _getToken();
@@ -179,6 +208,10 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  Future<dynamic> ajukanPenarikan(Map<String, dynamic> data) async {
+    return await post('my-simpanan/tarik', data);
+  }
+
   // --- Karyawan ---
 
   Future<List<dynamic>> getAnggota() async {
@@ -191,8 +224,36 @@ class ApiService {
     throw Exception('Format data anggota tidak valid');
   }
 
-  Future<dynamic> createAnggota(Map<String, String> data) async {
-    return await post('anggota', data);
+  Future<dynamic> createAnggota(
+    Map<String, String> data,
+    List<int> ktpBytes,
+    String ktpFilename,
+  ) async {
+    return _safeCall(() async {
+      String token = await _getToken();
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$_baseUrl/anggota'),
+      );
+      request.headers['Accept'] = 'application/json';
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.fields.addAll(data);
+
+      if (ktpBytes.isNotEmpty) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'ktp_path',
+            ktpBytes,
+            filename: ktpFilename,
+          ),
+        );
+      }
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    });
   }
 
   Future<dynamic> deleteAnggota(int id) async {
@@ -205,6 +266,10 @@ class ApiService {
 
   Future<dynamic> verifyKtp(int id) async {
     return await post('anggota/$id/verify-ktp', {});
+  }
+
+  Future<dynamic> rejectKtp(int id, String reason) async {
+    return await post('anggota/$id/reject-ktp', {'alasan_penolakan': reason});
   }
 
   Future<List<dynamic>> getPinjamanList(String status) async {
@@ -227,6 +292,10 @@ class ApiService {
 
   Future<dynamic> rejectPinjaman(int id, String alasan) async {
     return await post('pinjaman/$id/reject', {'alasan_penolakan': alasan});
+  }
+
+  Future<dynamic> requestRevision(int id, String reason) async {
+    return await post('pinjaman/$id/revision', {'alasan_perbaikan': reason});
   }
 
   Future<List<dynamic>> getSimpananPending() async {
@@ -294,6 +363,27 @@ class ApiService {
     request.headers['Accept'] = 'application/json';
     request.files.add(
       http.MultipartFile.fromBytes('ktp', bytes, filename: filename),
+    );
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> uploadProfilePhoto(
+    List<int> bytes,
+    String filename,
+  ) async {
+    String token = await _getToken();
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_baseUrl/profile/upload-photo'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
     );
 
     var streamedResponse = await request.send();
@@ -382,6 +472,35 @@ class ApiService {
     var request = http.MultipartRequest(
       'POST',
       Uri.parse('$_baseUrl/my-pinjaman'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+    request.fields.addAll(data);
+
+    fileBytes.forEach((key, bytes) {
+      if (fileNames.containsKey(key)) {
+        request.files.add(
+          http.MultipartFile.fromBytes(key, bytes, filename: fileNames[key]),
+        );
+      }
+    });
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+    return _handleResponse(response);
+  }
+
+  Future<dynamic> updatePinjaman(
+    int id,
+    Map<String, String> data,
+    Map<String, List<int>> fileBytes,
+    Map<String, String> fileNames,
+  ) async {
+    String token = await _getToken();
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_baseUrl/my-pinjaman/$id/update'),
     );
 
     request.headers['Authorization'] = 'Bearer $token';

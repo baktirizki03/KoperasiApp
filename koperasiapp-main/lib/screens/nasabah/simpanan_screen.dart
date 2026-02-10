@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:koperasiapp/screens/nasabah/simpanan_form_screen.dart';
+import 'simpanan_tarik_screen.dart';
 import '../../services/api_service.dart';
 
 class SimpananScreen extends StatefulWidget {
@@ -102,6 +103,10 @@ class _SimpananScreenState extends State<SimpananScreen> {
               itemCount: simpananList.length,
               itemBuilder: (ctx, index) {
                 final simpanan = simpananList[index];
+                // Check 'tipe' because that's where the ENUM('kredit','debet') lives in the DB
+                final isKredit =
+                    simpanan['tipe']?.toString().toLowerCase() == 'kredit';
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
@@ -121,12 +126,16 @@ class _SimpananScreenState extends State<SimpananScreen> {
                     leading: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: isKredit
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.inventory_2_rounded,
-                        color: Colors.green,
+                      child: Icon(
+                        isKredit
+                            ? Icons.arrow_downward_rounded
+                            : Icons.arrow_upward_rounded,
+                        color: isKredit ? Colors.green : Colors.red,
                       ),
                     ),
                     title: Text(
@@ -144,14 +153,17 @@ class _SimpananScreenState extends State<SimpananScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            simpanan['jenis_transaksi'],
+                            // 'jenis_transaksi' corresponds to Category in the DB (String)
+                            simpanan['jenis_transaksi'] ?? '-',
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w500,
                               color: Colors.black87,
                             ),
                           ),
                           Text(
-                            simpanan['tanggal'],
+                            DateFormat(
+                              'dd MMM yyyy',
+                            ).format(DateTime.parse(simpanan['tanggal'])),
                             style: GoogleFonts.poppins(
                               color: Colors.grey[600],
                               fontSize: 12,
@@ -187,23 +199,51 @@ class _SimpananScreenState extends State<SimpananScreen> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.of(context).push(
-            MaterialPageRoute(builder: (ctx) => const SimpananFormScreen()),
-          );
-          if (result == true) {
-            _loadData();
-          }
-        },
-        label: Text(
-          'Lakukan Setoran',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-        ),
-        icon: const Icon(Icons.add_rounded),
-        backgroundColor: Theme.of(context).colorScheme.secondary,
-        elevation: 4,
-      ).animate().scale(delay: 500.ms),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: "tarik",
+            onPressed: () async {
+              final result = await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (ctx) => const SimpananTarikScreen(),
+                ),
+              );
+              if (result == true) {
+                _loadData();
+              }
+            },
+            label: Text(
+              'Tarik Saldo',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+            icon: const Icon(Icons.money_off_rounded),
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
+            elevation: 4,
+          ).animate().scale(delay: 600.ms),
+          SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: "setor",
+            onPressed: () async {
+              final result = await Navigator.of(context).push(
+                MaterialPageRoute(builder: (ctx) => const SimpananFormScreen()),
+              );
+              if (result == true) {
+                _loadData();
+              }
+            },
+            label: Text(
+              'Lakukan Setoran',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+            icon: const Icon(Icons.add_rounded),
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+            elevation: 4,
+          ).animate().scale(delay: 500.ms),
+        ],
+      ),
     );
   }
 }
