@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/currency_formatter.dart';
 
 class LaporanAngsuranScreen extends StatefulWidget {
   const LaporanAngsuranScreen({super.key});
@@ -20,6 +21,10 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
   List<Map<String, dynamic>> _groupedData = [];
   bool _isLoading = true;
   String _filterStatusLaporan = 'Aktif'; // Default filter
+
+  // Summary Metrics
+  double _totalMasukBulanIni = 0;
+  int _totalMenunggak = 0;
 
   @override
   void initState() {
@@ -103,6 +108,9 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
 
     // Process Status and Progress for each group
     List<Map<String, dynamic>> processedList = [];
+    double tempMasukBulanIni = 0;
+    int tempMenunggak = 0;
+    final now = DateTime.now();
 
     for (var key in groups.keys) {
       final group = groups[key]!;
@@ -144,7 +152,8 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
         }
       }
 
-      group['progress'] = '$paid/$total Bulan';
+      group['progress_text'] = '$paid/$total';
+      group['progress_value'] = total > 0 ? (paid / total) : 0.0;
       group['status_laporan'] = isMenunggak ? 'Menunggak' : 'Lancar';
 
       // Override status based on Pinjaman Status or Count
@@ -154,8 +163,49 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
       if (statusPinjaman == 'lunas' || (paid == total && total > 0)) {
         group['status_laporan'] = 'Selesai';
         // Ensure progress shows full if lunas
-        if (paid < total) group['progress'] = '$total/$total Bulan';
+        if (paid < total) {
+          group['progress_text'] = '$total/$total';
+          group['progress_value'] = 1.0;
+        }
       }
+
+      if (group['status_laporan'] == 'Menunggak') {
+        tempMenunggak++;
+      }
+
+      // Calculate Sisa Hutang
+      double nominalPinjaman =
+          double.tryParse(pinjaman['nominal'].toString()) ?? 0;
+      double totalBayar = 0;
+      for (var ang in angsurans) {
+        final status = (ang['status'] ?? '').toString().toLowerCase();
+        double getAngsNominal =
+            double.tryParse(
+              (ang['jumlah_bayar'] ?? ang['jumlah_angsuran'] ?? '0').toString(),
+            ) ??
+            0;
+
+        if (status == 'lunas' || status == 'disetujui') {
+          totalBayar += getAngsNominal;
+
+          // Calculate Bulan Ini
+          final paidDateStr =
+              ang['updated_at'] ??
+              ang['created_at']; // approximate paid date in absence of real payment date
+          if (paidDateStr != null) {
+            final paidDate = DateTime.tryParse(paidDateStr);
+            if (paidDate != null &&
+                paidDate.year == now.year &&
+                paidDate.month == now.month) {
+              tempMasukBulanIni += getAngsNominal;
+            }
+          }
+        }
+      }
+
+      double sisaHutang = nominalPinjaman - totalBayar;
+      if (sisaHutang < 0) sisaHutang = 0;
+      group['sisa_hutang'] = sisaHutang;
 
       // Filter based on _filterStatusLaporan
       bool include = false;
@@ -175,11 +225,94 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
 
     setState(() {
       _groupedData = processedList;
+      _totalMasukBulanIni = tempMasukBulanIni;
+      _totalMenunggak = tempMenunggak;
     });
   }
 
   void _filterData() {
     _groupData();
+  }
+
+  Widget _buildSummaryCards() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildMiniCard(
+              'Angsuran Masuk (Bulan Ini)',
+              _totalMasukBulanIni,
+              Icons.savings,
+              Colors.green,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildMiniCard(
+              'Gagal Bayar (Menunggak)',
+              _totalMenunggak.toDouble(),
+              Icons.warning_amber_rounded,
+              Colors.red,
+              isCurrency: false,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniCard(
+    String title,
+    double value,
+    IconData icon,
+    Color color, {
+    bool isCurrency = true,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.05),
+            offset: const Offset(0, 4),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isCurrency ? formatRupiah(value) : '${value.toInt()} Anggota',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -198,6 +331,7 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
           : Column(
               children: [
                 _buildFilterHeader(),
+                _buildSummaryCards(),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -257,9 +391,65 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
                                     Text(anggota['nomor_anggota'] ?? '-'),
                                   ),
                                   DataCell(
-                                    Text(anggota['nama_lengkap'] ?? '-'),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 4,
+                                        horizontal: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        // highlight logic
+                                        color:
+                                            group['status_laporan'] ==
+                                                'Menunggak'
+                                            ? Colors.red.withOpacity(0.1)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        anggota['nama_lengkap'] ?? '-',
+                                      ),
+                                    ),
                                   ),
-                                  DataCell(Text(group['progress'])),
+                                  DataCell(
+                                    Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${group['progress_text']} Bln',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        SizedBox(
+                                          width: 80,
+                                          height: 6,
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              3,
+                                            ),
+                                            child: LinearProgressIndicator(
+                                              value: group['progress_value'],
+                                              backgroundColor:
+                                                  Colors.grey.shade200,
+                                              color:
+                                                  group['status_laporan'] ==
+                                                      'Menunggak'
+                                                  ? Colors.red
+                                                  : group['status_laporan'] ==
+                                                        'Selesai'
+                                                  ? Colors.blue
+                                                  : Colors.green,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   DataCell(
                                     _buildLaporanStatusBadge(
                                       group['status_laporan'],
@@ -358,6 +548,45 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Sisa Hutang:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        NumberFormat.currency(
+                          locale: 'id_ID',
+                          symbol: 'Rp ',
+                          decimalDigits: 0,
+                        ).format(group['sisa_hutang'] ?? 0),
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
         content: SizedBox(
@@ -398,12 +627,18 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
                     symbol: 'Rp ',
                     decimalDigits: 0,
                   ).format(
-                    double.tryParse(item['jumlah_angsuran'].toString()) ?? 0,
+                    double.tryParse(
+                          (item['jumlah_bayar'] ??
+                                  item['jumlah_angsuran'] ??
+                                  '0')
+                              .toString(),
+                        ) ??
+                        0,
                   ),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 subtitle: Text(
-                  'Jatuh Tempo: ${item['tanggal_jatuh_tempo'] ?? '-'}',
+                  'Jatuh Tempo: ${item['tanggal_jatuh_tempo'] != null ? DateFormat('dd MMM yyyy').format(DateTime.tryParse(item['tanggal_jatuh_tempo']) ?? DateTime.now()) : '-'}',
                   style: TextStyle(
                     fontSize: 11,
                     color: isOverdue ? Colors.red : Colors.grey,

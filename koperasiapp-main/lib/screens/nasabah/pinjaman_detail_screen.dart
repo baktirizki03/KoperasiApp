@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/currency_formatter.dart';
 import '../../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -90,7 +91,7 @@ class _NasabahPinjamanDetailScreenState
               children: [
                 Card(
                   child: ListTile(
-                    title: Text('Rp ${pinjaman['nominal']}'),
+                    title: Text(formatRupiah(pinjaman['nominal'])),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -183,19 +184,19 @@ class _NasabahPinjamanDetailScreenState
                           'Keperluan: ${pinjaman['untuk_keperluan'] ?? '-'}',
                         ),
                         Text('Tenor: ${pinjaman['tenor_cicilan']} bulan'),
-                        if (pinjaman['departemen_pekerjaan'] != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Departemen: ${pinjaman['departemen_pekerjaan']}',
-                          ),
-                          Text(
-                            'Pendapatan: Rp ${pinjaman['pendapatan_per_bulan']}',
-                          ),
-                          Text(
-                            'Bank: ${pinjaman['nama_bank']} (${pinjaman['no_rekening']})',
-                          ),
-                          Text('Alamat: ${pinjaman['alamat_tempat_tinggal']}'),
-                        ],
+                        const SizedBox(height: 8),
+                        Text(
+                          'Departemen: ${pinjaman['departemen_pekerjaan'] ?? '-'}',
+                        ),
+                        Text(
+                          'Pendapatan: ${formatRupiah(pinjaman['pendapatan_per_bulan'])}',
+                        ),
+                        Text(
+                          'Bank: ${pinjaman['nama_bank'] ?? '-'} (${pinjaman['no_rekening'] ?? '-'})',
+                        ),
+                        Text(
+                          'Alamat: ${pinjaman['alamat_tempat_tinggal'] ?? '-'}',
+                        ),
                       ],
                     ),
                   ),
@@ -268,7 +269,7 @@ class _NasabahPinjamanDetailScreenState
                   style: const TextStyle(fontSize: 12),
                 ),
                 Text(
-                  'Nominal: Rp ${angsuran['jumlah_bayar']}',
+                  'Nominal: ${formatRupiah(angsuran['jumlah_bayar'])}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],

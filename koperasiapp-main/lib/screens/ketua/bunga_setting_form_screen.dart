@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:currency_text_input_formatter/currency_text_input_formatter.dart';
 import 'package:koperasiapp/services/api_service.dart';
 
 class BungaSettingFormScreen extends StatefulWidget {
@@ -21,14 +22,31 @@ class _BungaSettingFormScreenState extends State<BungaSettingFormScreen> {
   late TextEditingController _tenorController;
   late TextEditingController _rateController;
 
+  String _formatInitialCurrency(String? value) {
+    if (value == null || value.isEmpty) return '';
+    try {
+      // API might return '1000000.00' due to decimal(15,2) in DB.
+      // We only take the integer part before the dot.
+      String intPart = value.split('.')[0];
+      final intVal = int.parse(intPart.replaceAll(RegExp(r'[^0-9]'), ''));
+      return CurrencyTextInputFormatter.currency(
+        locale: 'id',
+        symbol: '',
+        decimalDigits: 0,
+      ).formatString(intVal.toString());
+    } catch (e) {
+      return value;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _minAmountController = TextEditingController(
-      text: widget.setting?['min_amount']?.toString() ?? '',
+      text: _formatInitialCurrency(widget.setting?['min_amount']?.toString()),
     );
     _maxAmountController = TextEditingController(
-      text: widget.setting?['max_amount']?.toString() ?? '',
+      text: _formatInitialCurrency(widget.setting?['max_amount']?.toString()),
     );
     _tenorController = TextEditingController(
       text: widget.setting?['tenor']?.toString() ?? '',
@@ -52,9 +70,19 @@ class _BungaSettingFormScreenState extends State<BungaSettingFormScreen> {
 
     setState(() => _isLoading = true);
 
+    // Remove formatting (. and ,) before sending to API
+    final rawMinAmount = _minAmountController.text.replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+    final rawMaxAmount = _maxAmountController.text.replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+
     final data = {
-      'min_amount': _minAmountController.text,
-      'max_amount': _maxAmountController.text,
+      'min_amount': rawMinAmount,
+      'max_amount': rawMaxAmount,
       'tenor': _tenorController.text,
       'rate': _rateController.text,
     };
@@ -128,6 +156,13 @@ class _BungaSettingFormScreenState extends State<BungaSettingFormScreen> {
                         controller: _minAmountController,
                         decoration: _buildDecoration('Minimal Pinjaman (Rp)'),
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          CurrencyTextInputFormatter.currency(
+                            locale: 'id',
+                            symbol: '',
+                            decimalDigits: 0,
+                          ),
+                        ],
                         validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
                       ),
                       const SizedBox(height: 16),
@@ -135,6 +170,13 @@ class _BungaSettingFormScreenState extends State<BungaSettingFormScreen> {
                         controller: _maxAmountController,
                         decoration: _buildDecoration('Maksimal Pinjaman (Rp)'),
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          CurrencyTextInputFormatter.currency(
+                            locale: 'id',
+                            symbol: '',
+                            decimalDigits: 0,
+                          ),
+                        ],
                         validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
                       ),
                       const SizedBox(height: 16),

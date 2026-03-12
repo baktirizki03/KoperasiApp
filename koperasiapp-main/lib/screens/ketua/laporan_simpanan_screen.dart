@@ -22,6 +22,9 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
   bool _isLoading = true;
   String _filterStatus = 'Semua';
 
+  // Grand Total
+  double _totalKasKoperasi = 0;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +66,8 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
     final Map<String, Map<String, dynamic>> groups = {};
     final query = _searchController.text.toLowerCase();
     final filterStatus = _filterStatus.toLowerCase();
+
+    double tempKasTotal = 0;
 
     for (var item in _allData) {
       final anggota = item['anggota'] ?? {};
@@ -112,11 +117,37 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
         if (groups[userId]!['summary'].containsKey(statusKey)) {
           groups[userId]!['summary'][statusKey]++;
         }
+
+        // Calculate Grand Total Kas Koperasi (Only Approved)
+        if (itemStatus == 'disetujui' || itemStatus == 'verified') {
+          double nominal =
+              double.tryParse(
+                (item['jumlah'] ?? item['nominal'] ?? '0').toString(),
+              ) ??
+              0;
+          String jenis = (item['jenis_transaksi'] ?? '')
+              .toString()
+              .toLowerCase();
+
+          String tipe = (item['tipe'] ?? '').toString().toLowerCase();
+
+          // Koperasi logic for Kas Masuk:
+          // Usually 'kredit' means money goes into the cooperative (user deposits).
+          // 'debet' means money goes out (user withdraws).
+          if (jenis == 'kredit' || jenis == 'simpanan' || tipe == 'kredit') {
+            tempKasTotal += nominal;
+          } else if (jenis == 'debet' ||
+              jenis == 'penarikan' ||
+              tipe == 'debet') {
+            tempKasTotal -= nominal;
+          }
+        }
       }
     }
 
     setState(() {
       _groupedData = groups.values.toList();
+      _totalKasKoperasi = tempKasTotal;
     });
   }
 
@@ -128,6 +159,74 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Widget _buildSummaryCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFE65100), Color(0xFFF57C00)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.orange.withOpacity(0.3),
+              offset: const Offset(0, 4),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.account_balance,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Total Kas Koperasi',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              NumberFormat.currency(
+                locale: 'id_ID',
+                symbol: 'Rp ',
+                decimalDigits: 0,
+              ).format(_totalKasKoperasi),
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -146,6 +245,7 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
           : Column(
               children: [
                 _buildFilterHeader(),
+                _buildSummaryCard(),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -289,6 +389,29 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
     final anggota = group['anggota'];
     final simpananList = group['simpanan'] as List<dynamic>;
 
+    // Calculate individual current balance
+    double totalSaldo = 0;
+    for (var item in simpananList) {
+      if ((item['status'] ?? '').toString().toLowerCase() == 'disetujui' ||
+          (item['status'] ?? '').toString().toLowerCase() == 'verified') {
+        double nominal =
+            double.tryParse(
+              (item['jumlah'] ?? item['nominal'] ?? '0').toString(),
+            ) ??
+            0;
+        String jenis = (item['jenis_transaksi'] ?? '').toString().toLowerCase();
+        String tipe = (item['tipe'] ?? '').toString().toLowerCase();
+
+        if (jenis == 'kredit' || jenis == 'simpanan' || tipe == 'kredit') {
+          totalSaldo += nominal;
+        } else if (jenis == 'debet' ||
+            jenis == 'penarikan' ||
+            tipe == 'debet') {
+          totalSaldo -= nominal;
+        }
+      }
+    }
+
     // Sort by Date Descending
     simpananList.sort((a, b) {
       final dateA = DateTime.tryParse(a['created_at']) ?? DateTime(2000);
@@ -303,12 +426,51 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Riwayat Simpanan',
+              'Riwayat Transaksi',
               style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
             ),
             Text(
               '${anggota['nama_lengkap']} - ${anggota['nomor_anggota']}',
               style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total Saldo:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        NumberFormat.currency(
+                          locale: 'id_ID',
+                          symbol: 'Rp ',
+                          decimalDigits: 0,
+                        ).format(totalSaldo),
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -379,7 +541,11 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
                           symbol: 'Rp ',
                           decimalDigits: 0,
                         ).format(
-                          double.tryParse(item['nominal'].toString()) ?? 0,
+                          double.tryParse(
+                                (item['jumlah'] ?? item['nominal'] ?? '0')
+                                    .toString(),
+                              ) ??
+                              0,
                         ),
                         style: TextStyle(
                           fontWeight: FontWeight.bold,

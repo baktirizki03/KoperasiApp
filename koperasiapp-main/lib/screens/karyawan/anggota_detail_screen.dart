@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../widgets/secure_image_widget.dart';
 
 class AnggotaDetailScreen extends StatefulWidget {
   final Map<String, dynamic> anggota;
@@ -76,19 +77,26 @@ class _AnggotaDetailScreenState extends State<AnggotaDetailScreen> {
             CircleAvatar(
               radius: 40,
               backgroundColor: Colors.blue.shade100,
-              backgroundImage: fotoProfileUrl.isNotEmpty
-                  ? NetworkImage(fotoProfileUrl)
-                  : null,
-              child: fotoProfileUrl.isEmpty
-                  ? Text(
-                      anggota['nama_lengkap'][0].toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade800,
+              child: fotoProfileUrl.isNotEmpty
+                  ? ClipOval(
+                      child: SecureImageWidget(
+                        imageUrl: anggota['foto_profile_path'],
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
                       ),
                     )
-                  : null,
+                  : (anggota['nama_lengkap'] != null &&
+                            anggota['nama_lengkap'].isNotEmpty
+                        ? Text(
+                            anggota['nama_lengkap'][0].toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade800,
+                            ),
+                          )
+                        : const Icon(Icons.person)),
             ),
             SizedBox(height: 12),
             Text(
@@ -199,20 +207,7 @@ class _AnggotaDetailScreenState extends State<AnggotaDetailScreen> {
               ),
             ),
             InteractiveViewer(
-              child: Image.network(
-                url,
-                fit: BoxFit.contain,
-                loadingBuilder: (_, child, p) => p == null
-                    ? child
-                    : Container(
-                        height: 200,
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                errorBuilder: (_, __, ___) => Container(
-                  height: 200,
-                  child: Center(child: Text('Gagal memuat gambar')),
-                ),
-              ),
+              child: SecureImageWidget(imageUrl: url, fit: BoxFit.contain),
             ),
           ],
         ),

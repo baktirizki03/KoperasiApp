@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/currency_formatter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -407,111 +408,111 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                 ListTile(
                   leading: const Icon(Icons.money),
                   title: const Text('Nominal'),
-                  subtitle: Text('Rp ${pinjaman['nominal']}'),
+                  subtitle: Text(formatRupiah(pinjaman['nominal'])),
                 ),
                 ListTile(
                   leading: const Icon(Icons.timelapse),
                   title: const Text('Tenor'),
                   subtitle: Text('${pinjaman['tenor_cicilan']} bulan'),
                 ),
-                if (pinjaman['departemen_pekerjaan'] != null) ...[
-                  ListTile(
-                    leading: const Icon(Icons.work),
-                    title: const Text('Pekerjaan'),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Dept: ${pinjaman['departemen_pekerjaan']}'),
-                        Text('Gaji: Rp ${pinjaman['pendapatan_per_bulan']}'),
-                      ],
-                    ),
+                ListTile(
+                  leading: const Icon(Icons.work),
+                  title: const Text('Pekerjaan'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Dept: ${pinjaman['departemen_pekerjaan'] ?? '-'}'),
+                      Text(
+                        'Gaji: ${formatRupiah(pinjaman['pendapatan_per_bulan'])}',
+                      ),
+                    ],
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.account_balance),
-                    title: const Text('Bank & Rekening'),
-                    subtitle: Text(
-                      '${pinjaman['nama_bank']} - ${pinjaman['no_rekening']}',
-                    ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.account_balance),
+                  title: const Text('Bank & Rekening'),
+                  subtitle: Text(
+                    '${pinjaman['nama_bank'] ?? '-'} - ${pinjaman['no_rekening'] ?? '-'}',
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.home),
-                    title: const Text('Alamat Saudara'),
-                    subtitle: Text('${pinjaman['alamat_tempat_tinggal']}'),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.flag),
-                    title: const Text('Keperluan'),
-                    subtitle: Text('${pinjaman['untuk_keperluan']}'),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.family_restroom),
-                    title: const Text('Saudara Terdekat'),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${pinjaman['nama_saudara_terdekat']}'),
-                        Text(
-                          'Telp: ${pinjaman['no_telepon_saudara'] ?? '-'}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.home),
+                  title: const Text('Alamat Saudara'),
+                  subtitle: Text('${pinjaman['alamat_tempat_tinggal'] ?? '-'}'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.flag),
+                  title: const Text('Keperluan'),
+                  subtitle: Text('${pinjaman['untuk_keperluan'] ?? '-'}'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.family_restroom),
+                  title: const Text('Saudara Terdekat'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${pinjaman['nama_saudara_terdekat'] ?? '-'}'),
+                      Text(
+                        'Telp: ${pinjaman['no_telepon_saudara'] ?? '-'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(),
+                const Text(
+                  'Dokumen:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                // Showing uploaded documents
+                if (pinjaman['foto_kk'] != null)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.perm_contact_calendar,
+                      color: Colors.purple,
+                    ),
+                    title: const Text('Foto KK'),
+                    trailing: const Icon(Icons.visibility),
+                    onTap: () => _showImage(pinjaman['foto_kk'], 'Foto KK'),
+                  ),
+
+                if (pinjaman['foto_id_karyawan'] != null)
+                  ListTile(
+                    leading: const Icon(Icons.badge, color: Colors.blue),
+                    title: const Text('Foto ID Karyawan'),
+                    trailing: const Icon(Icons.visibility),
+                    onTap: () => _showImage(
+                      pinjaman['foto_id_karyawan'],
+                      'Foto ID Karyawan',
                     ),
                   ),
 
-                  const Divider(),
-                  const Text(
-                    'Dokumen:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                if (pinjaman['slip_gaji_path'] != null)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.description,
+                      color: Colors.orange,
+                    ),
+                    title: const Text('Slip Gaji'),
+                    trailing: const Icon(Icons.visibility),
+                    onTap: () =>
+                        _showImage(pinjaman['slip_gaji_path'], 'Slip Gaji'),
                   ),
-                  const SizedBox(height: 8),
-                  // Showing uploaded documents
-                  if (pinjaman['foto_kk'] != null)
-                    ListTile(
-                      leading: const Icon(
-                        Icons.perm_contact_calendar,
-                        color: Colors.purple,
-                      ),
-                      title: const Text('Foto KK'),
-                      trailing: const Icon(Icons.visibility),
-                      onTap: () => _showImage(pinjaman['foto_kk'], 'Foto KK'),
-                    ),
 
-                  if (pinjaman['foto_id_karyawan'] != null)
-                    ListTile(
-                      leading: const Icon(Icons.badge, color: Colors.blue),
-                      title: const Text('Foto ID Karyawan'),
-                      trailing: const Icon(Icons.visibility),
-                      onTap: () => _showImage(
-                        pinjaman['foto_id_karyawan'],
-                        'Foto ID Karyawan',
-                      ),
-                    ),
-
-                  if (pinjaman['slip_gaji_path'] != null)
-                    ListTile(
-                      leading: const Icon(
-                        Icons.description,
-                        color: Colors.orange,
-                      ),
-                      title: const Text('Slip Gaji'),
-                      trailing: const Icon(Icons.visibility),
-                      onTap: () =>
-                          _showImage(pinjaman['slip_gaji_path'], 'Slip Gaji'),
-                    ),
-
-                  // KTP from Anggota
-                  if (anggota['ktp_path'] != null)
-                    ListTile(
-                      leading: const Icon(Icons.badge, color: Colors.green),
-                      title: const Text('Foto KTP'),
-                      trailing: const Icon(Icons.visibility),
-                      onTap: () => _showImage(anggota['ktp_path'], 'Foto KTP'),
-                    ),
-                  const Divider(),
-                ],
+                // KTP from Anggota
+                if (anggota['ktp_path'] != null)
+                  ListTile(
+                    leading: const Icon(Icons.badge, color: Colors.green),
+                    title: const Text('Foto KTP'),
+                    trailing: const Icon(Icons.visibility),
+                    onTap: () => _showImage(anggota['ktp_path'], 'Foto KTP'),
+                  ),
+                const Divider(),
                 ListTile(
                   leading: const Icon(Icons.info_outline),
                   title: const Text('Status'),
@@ -594,7 +595,10 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                                 child: Text('${angsuran['angsuran_ke']}'),
                               ),
                               title: Text(
-                                'Rp ${angsuran['jumlah_angsuran'] ?? angsuran['jumlah_bayar']}',
+                                formatRupiah(
+                                  angsuran['jumlah_angsuran'] ??
+                                      angsuran['jumlah_bayar'],
+                                ),
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

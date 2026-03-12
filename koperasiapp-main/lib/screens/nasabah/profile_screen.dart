@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:koperasiapp/screens/nasabah/profile_edit_screen.dart';
 import '../common/change_password_screen.dart';
 import '../../services/api_service.dart';
+import '../../widgets/secure_image_widget.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -165,22 +166,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: CircleAvatar(
                           radius: 60,
                           backgroundColor: Colors.grey[200],
-                          backgroundImage:
+                          child:
                               anggota != null &&
                                   anggota['foto_profile_path'] != null
-                              ? NetworkImage(
-                                  '${_apiService.storageUrl}/${anggota['foto_profile_path']}',
+                              ? ClipOval(
+                                  child: SecureImageWidget(
+                                    imageUrl: anggota['foto_profile_path'],
+                                    width: 120,
+                                    height: 120,
+                                    fit: BoxFit.cover,
+                                  ),
                                 )
-                              : null,
-                          child:
-                              anggota == null ||
-                                  anggota['foto_profile_path'] == null
-                              ? Icon(
+                              : Icon(
                                   Icons.person_rounded,
                                   size: 60,
                                   color: Colors.grey[400],
-                                )
-                              : null,
+                                ),
                         ),
                       ),
                     ],

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/currency_formatter.dart';
 
 class LaporanPinjamanScreen extends StatefulWidget {
   final String? initialFilterStatus;
@@ -23,6 +24,11 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
   bool _isLoading = true;
   String _filterStatus = 'Semua'; // Default
 
+  // Grand Totals
+  double _totalPlafonAktif = 0;
+  double _totalAngsuranMasuk = 0;
+  double _totalSisaHutang = 0;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +45,9 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
 
     final query = _searchController.text.toLowerCase();
     final filterStatus = _filterStatus.toLowerCase();
+
+    double tempPlafon = 0;
+    double tempMasuk = 0;
 
     for (var item in _allData) {
       final anggota = item['anggota'] ?? {};
@@ -86,6 +95,30 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
         if (groups[userId]!['summary'].containsKey(summaryKey)) {
           groups[userId]!['summary'][summaryKey]++;
         }
+
+        // Calculate Totals only for Disetujui/Lunas
+        if (itemStatus == 'disetujui' || itemStatus == 'lunas') {
+          double nominal =
+              double.tryParse((item['nominal'] ?? '0').toString()) ?? 0;
+          tempPlafon += nominal;
+
+          // Process Angsurans for 'Kas Masuk'
+          if (item['angsurans'] != null && item['angsurans'] is List) {
+            for (var angs in item['angsurans']) {
+              if (angs['status'] == 'lunas' || angs['status'] == 'disetujui') {
+                tempMasuk +=
+                    double.tryParse(
+                      (angs['jumlah_bayar'] ??
+                              angs['jumlah_angsuran'] ??
+                              angs['nominal_angsuran'] ??
+                              '0')
+                          .toString(),
+                    ) ??
+                    0;
+              }
+            }
+          }
+        }
       }
     }
 
@@ -94,6 +127,10 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
 
     setState(() {
       _groupedData = groups.values.toList();
+      _totalPlafonAktif = tempPlafon;
+      _totalAngsuranMasuk = tempMasuk;
+      _totalSisaHutang = _totalPlafonAktif - _totalAngsuranMasuk;
+      if (_totalSisaHutang < 0) _totalSisaHutang = 0;
     });
   }
 
@@ -106,6 +143,94 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Widget _buildSummaryCards() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildMiniCard(
+              'Total Plafon (Aktif)',
+              _totalPlafonAktif,
+              Icons.account_balance_wallet,
+              Colors.blue,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildMiniCard(
+              'Angsuran Masuk',
+              _totalAngsuranMasuk,
+              Icons.trending_down,
+              Colors.green,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildMiniCard(
+              'Sisa Hutang',
+              _totalSisaHutang,
+              Icons.warning_amber_rounded,
+              Colors.orange,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniCard(
+    String title,
+    double value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.05),
+            offset: const Offset(0, 4),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            formatRupiah(value),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -124,6 +249,7 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
           : Column(
               children: [
                 _buildFilterHeader(),
+                _buildSummaryCards(),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -363,6 +489,72 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
                             color: Colors.grey[600],
                           ),
                         ),
+                      if (item['angsurans'] != null &&
+                          (item['angsurans'] as List).isNotEmpty) ...[
+                        const Divider(height: 24),
+                        Text(
+                          'Riwayat Angsuran:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...((item['angsurans'] as List)..sort(
+                              (a, b) =>
+                                  (int.tryParse(a['angsuran_ke'].toString()) ??
+                                          0)
+                                      .compareTo(
+                                        int.tryParse(
+                                              b['angsuran_ke'].toString(),
+                                            ) ??
+                                            0,
+                                      ),
+                            ))
+                            .map((angs) {
+                              bool isPaid =
+                                  angs['status'] == 'lunas' ||
+                                  angs['status'] == 'disetujui';
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 6.0),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isPaid
+                                          ? Icons.check_circle
+                                          : Icons.schedule,
+                                      size: 14,
+                                      color: isPaid
+                                          ? Colors.green
+                                          : Colors.orange,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Bulan ${angs['angsuran_ke']}',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                    Text(
+                                      formatRupiah(
+                                        double.tryParse(
+                                              (angs['jumlah_bayar'] ??
+                                                      angs['jumlah_angsuran'] ??
+                                                      angs['nominal_angsuran'] ??
+                                                      '0')
+                                                  .toString(),
+                                            ) ??
+                                            0,
+                                      ),
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            })
+                            .toList(),
+                      ],
                     ],
                   ),
                 ),

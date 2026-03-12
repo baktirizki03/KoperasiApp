@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'anggota_form_screen.dart';
 import 'anggota_detail_screen.dart';
+import 'anggota_trash_screen.dart';
 
 class AnggotaListScreen extends StatefulWidget {
   const AnggotaListScreen({super.key});
@@ -568,8 +569,29 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = Provider.of<AuthProvider>(context, listen: false).role;
+    final isKetuaOrKaryawan = role == 'ketua' || role == 'karyawan';
+
     return Scaffold(
-      appBar: AppBar(title: Text('Daftar Anggota')),
+      appBar: AppBar(
+        title: Text('Daftar Anggota'),
+        actions: [
+          if (isKetuaOrKaryawan)
+            IconButton(
+              icon: Icon(Icons.delete_outline),
+              tooltip: 'Tempat Sampah',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AnggotaTrashScreen()),
+                ).then((_) {
+                  // Reload list in case a member was restored
+                  _loadAnggota();
+                });
+              },
+            ),
+        ],
+      ),
       body: FutureBuilder<List<dynamic>>(
         future: _anggotaFuture,
         builder: (context, snapshot) {

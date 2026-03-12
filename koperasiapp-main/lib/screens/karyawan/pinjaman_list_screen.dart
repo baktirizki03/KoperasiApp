@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/currency_formatter.dart';
 import '../../services/api_service.dart';
 import 'pinjaman_detail_screen.dart';
 
@@ -161,7 +162,7 @@ class _PinjamanListScreenState extends State<PinjamanListScreen>
                         : 'Nama tidak tersedia',
                   ),
                   subtitle: Text(
-                    'Nominal: Rp ${pinjaman['nominal']} \nTenor: ${pinjaman['tenor_cicilan']} bulan',
+                    'Nominal: ${formatRupiah(pinjaman['nominal'])} \nTenor: ${pinjaman['tenor_cicilan']} bulan',
                   ),
                   isThreeLine: true,
                   onTap: () async {

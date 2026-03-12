@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../utils/currency_formatter.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 
@@ -83,11 +83,24 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
       double totalInterestAssets = 0;
       for (var p in pinjamanList) {
         final status = (p['status'] ?? '').toString().toLowerCase();
-        if (status == 'disetujui' || status == 'lunas') {
+        if (status == 'disetujui' ||
+            status == 'verified' ||
+            status == 'lunas') {
           double nominal =
-              double.tryParse((p['nominal'] ?? '0').toString()) ?? 0;
+              double.tryParse(
+                (p['jumlah_pinjaman'] ?? p['jumlah'] ?? p['nominal'] ?? '0')
+                    .toString(),
+              ) ??
+              0;
           double angsuranPerBulan =
-              double.tryParse((p['jumlah_angsuran'] ?? '0').toString()) ?? 0;
+              double.tryParse(
+                (p['jumlah_bayar'] ??
+                        p['jumlah_angsuran'] ??
+                        p['nominal_angsuran'] ??
+                        '0')
+                    .toString(),
+              ) ??
+              0;
           int lamaAngsuran =
               int.tryParse((p['lama_angsuran'] ?? '0').toString()) ?? 0;
 
@@ -135,10 +148,17 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
 
       for (var p in pinjamanList) {
         final status = (p['status'] ?? '').toString().toLowerCase();
-        if (status == 'disetujui') {
+        if (status == 'disetujui' ||
+            status == 'verified' ||
+            status == 'aktif' ||
+            status == 'berjalan') {
           // Only active
           double nominal =
-              double.tryParse((p['nominal'] ?? '0').toString()) ?? 0;
+              double.tryParse(
+                (p['jumlah_pinjaman'] ?? p['jumlah'] ?? p['nominal'] ?? '0')
+                    .toString(),
+              ) ??
+              0;
           totalNominalPinjamanAktif += nominal;
           activeLoanCount++;
         }
@@ -154,7 +174,9 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
       mergedData['pending_simpanan'] = pendingSimpanan;
       mergedData['estimated_assets'] = totalAssets;
       mergedData['kas_masuk_sukarela'] = totalKasMasuk;
-      mergedData['total_anggota'] = anggotaList.length;
+      mergedData['total_anggota'] = anggotaList
+          .where((a) => a['is_ktp_verified'] == 1)
+          .length;
 
       // Pass lists for charts
       mergedData['simpanan_list'] = simpananList;
@@ -357,9 +379,17 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
                 'Total Aset',
                 data['estimated_assets'] ?? 0,
                 Icons.account_balance_wallet,
-                // Deep Royal Blue -> Blue
                 [const Color(0xFF0D47A1), const Color(0xFF1976D2)],
                 isCurrency: true,
+                onTap: () {
+                  // Total Kas/Aset is closely related to Simpanan
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (c) => const LaporanSimpananScreen(),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 16),
@@ -368,8 +398,15 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
                 'Anggota Aktif',
                 data['total_anggota'] ?? 0,
                 Icons.people_alt,
-                // Deep Purple -> Magenta (Professional)
                 [const Color(0xFF4A148C), const Color(0xFF7B1FA2)],
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (c) => const AnggotaListScreen(),
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -382,9 +419,16 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
                 'Pinjaman Berjalan', // Label remains, value changes to Rp
                 data['total_angsuran_aktif_val'] ?? 0,
                 Icons.trending_up,
-                // Dark Green -> Emerald
                 [const Color(0xFF1B5E20), const Color(0xFF2E7D32)],
                 isCurrency: true,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (c) => const LaporanPinjamanScreen(),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 16),
@@ -393,9 +437,16 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
                 'Kas Masuk (Sukarela)',
                 data['kas_masuk_sukarela'] ?? 0,
                 Icons.savings,
-                // Bronze -> Amber (Wealth)
                 [const Color(0xFFE65100), const Color(0xFFF57C00)],
                 isCurrency: true,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (c) => const LaporanSimpananScreen(),
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -410,66 +461,76 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
     IconData icon,
     List<Color> colors, {
     bool isCurrency = false,
+    VoidCallback? onTap,
   }) {
     String displayValue = value.toString();
     if (isCurrency && value is num) {
-      displayValue = NumberFormat.compactCurrency(
-        locale: 'id_ID',
-        symbol: 'Rp',
-      ).format(value);
+      displayValue = formatRupiah(value);
     }
 
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: colors[0].withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: colors[0].withOpacity(0.3),
-            blurRadius: 12,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: Colors.white.withOpacity(0.8), size: 28),
-              Container(
-                padding: EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, color: Colors.white.withOpacity(0.8), size: 28),
+                Container(
+                  padding: EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                    size: 12,
+                  ),
                 ),
-                child: Icon(Icons.arrow_forward, color: Colors.white, size: 12),
+              ],
+            ),
+            const SizedBox(height: 16),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                displayValue,
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            displayValue,
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
             ),
-          ),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 12,
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 12,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

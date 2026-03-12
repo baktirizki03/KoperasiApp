@@ -248,7 +248,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildRiwayatList(List items, {required bool isAngsuran}) {
-    // Note: isAngsuran sebenarnya merepresentasikan isPinjaman sekarang
     if (items.isEmpty) {
       return Center(
         child: Column(
@@ -317,7 +316,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             title: Text(
-              // Jika ini Pinjaman (isAngsuran context), tampilkan 'Pengajuan Pinjaman'
               // Jika Simpanan, tampilkan tipe simpanan
               isAngsuran
                   ? 'Pengajuan Pinjaman'

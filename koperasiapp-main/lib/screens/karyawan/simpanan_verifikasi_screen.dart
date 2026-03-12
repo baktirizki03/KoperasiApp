@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../utils/currency_formatter.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../widgets/secure_image_widget.dart';
 
 class SimpananVerifikasiScreen extends StatefulWidget {
   const SimpananVerifikasiScreen({super.key});
@@ -75,32 +77,7 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
             ),
             Flexible(
               child: InteractiveViewer(
-                child: Image.network(
-                  imageUrl,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const SizedBox(
-                      height: 200,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) => const SizedBox(
-                    height: 200,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.broken_image,
-                            size: 50,
-                            color: Colors.grey,
-                          ),
-                          Text('Gagal memuat gambar'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                child: SecureImageWidget(imageUrl: path, fit: BoxFit.contain),
               ),
             ),
           ],
@@ -132,7 +109,7 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
               Text('Nama: ${anggota['nama_lengkap'] ?? 'N/A'}'),
               Text('Email: ${anggota['user']['email'] ?? 'N/A'}'),
               const Divider(),
-              Text('Nominal: Rp ${simpanan['nominal'] ?? 0}'),
+              Text('Nominal: ${formatRupiah(simpanan['nominal'] ?? 0)}'),
               Text(
                 'Tipe: $tipeLabel',
                 style: TextStyle(
@@ -204,10 +181,11 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey),
                         borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(
-                            '${_apiService.storageUrl}/${simpanan['bukti_transfer_path']}',
-                          ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: SecureImageWidget(
+                          imageUrl: simpanan['bukti_transfer_path'],
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -297,7 +275,7 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Rp ${simpanan['nominal']}'),
+                        Text(formatRupiah(simpanan['nominal'])),
                         Text(
                           '$label - ${simpanan['jenis_transaksi']}',
                           style: TextStyle(

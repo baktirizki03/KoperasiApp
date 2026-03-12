@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:image_picker/image_picker.dart'; // Keep image_picker as it's used for _picker
 import '../../services/api_service.dart';
+import '../../widgets/secure_image_widget.dart'; // New import
 
 class ProfileEditScreen extends StatefulWidget {
   final Map<String, dynamic> anggota;
@@ -254,25 +255,31 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   child: Stack(
                     children: [
                       CircleAvatar(
-                        radius: 50,
+                        radius: 60,
                         backgroundColor: Colors.grey[200],
-                        backgroundImage: _imageFile != null
-                            ? FileImage(File(_imageFile!.path))
-                            : (widget.anggota['foto_profile_path'] != null
-                                      ? NetworkImage(
-                                          '${_apiService.storageUrl}/${widget.anggota['foto_profile_path']}',
-                                        )
-                                      : null)
-                                  as ImageProvider?,
-                        child:
-                            _imageFile == null &&
-                                widget.anggota['foto_profile_path'] == null
-                            ? const Icon(
-                                Icons.person,
-                                size: 50,
-                                color: Colors.grey,
+                        child: _imageFile != null
+                            ? ClipOval(
+                                child: Image.file(
+                                  File(_imageFile!.path),
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                ),
                               )
-                            : null,
+                            : widget.anggota['foto_profile_path'] != null
+                            ? ClipOval(
+                                child: SecureImageWidget(
+                                  imageUrl: widget.anggota['foto_profile_path'],
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Icon(
+                                Icons.person_rounded,
+                                size: 60,
+                                color: Colors.grey[400],
+                              ),
                       ),
                       Positioned(
                         bottom: 0,

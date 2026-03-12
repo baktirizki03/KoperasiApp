@@ -224,6 +224,20 @@ class ApiService {
     throw Exception('Format data anggota tidak valid');
   }
 
+  Future<List<dynamic>> getAnggotaSampah() async {
+    final responseData = await get('anggota/sampah');
+    if (responseData is List) {
+      return responseData;
+    } else if (responseData is Map && responseData.containsKey('data')) {
+      return responseData['data'] as List<dynamic>;
+    }
+    throw Exception('Format data sampah tidak valid');
+  }
+
+  Future<dynamic> restoreAnggota(int id) async {
+    return await post('anggota/$id/restore', {});
+  }
+
   Future<dynamic> createAnggota(
     Map<String, String> data,
     List<int> ktpBytes,
