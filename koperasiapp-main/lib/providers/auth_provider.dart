@@ -31,6 +31,9 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> tryAutoLogin() async {
+    // Memberikan jeda buatan agar Splash Screen muncul dengan indah
+    await Future.delayed(const Duration(milliseconds: 2500));
+
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey('token')) {
       return;

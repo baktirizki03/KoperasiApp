@@ -45,7 +45,7 @@ class _NasabahDashboardState extends State<NasabahDashboard> {
       appBar: AppBar(
         title: Text(
           _getTitle(),
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.primary,

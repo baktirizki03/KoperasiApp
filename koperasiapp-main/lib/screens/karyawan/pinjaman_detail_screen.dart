@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../widgets/secure_image_widget.dart';
 
 class PinjamanDetailScreen extends StatefulWidget {
   final int pinjamanId;
@@ -230,6 +231,60 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
     }
   }
 
+  void _rejectAngsuran(int angsuranId) async {
+    final alasan = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tolak Bukti Pembayaran'),
+        content: TextField(
+          controller: _alasanController,
+          decoration: const InputDecoration(
+            hintText: 'Pastikan alasan jelas agar nasabah paham',
+            labelText: 'Alasan Penolakan',
+          ),
+          maxLines: 2,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_alasanController.text.isNotEmpty) {
+                Navigator.of(ctx).pop(_alasanController.text);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Kirim Revisi'),
+          ),
+        ],
+      ),
+    );
+
+    if (alasan != null && alasan.isNotEmpty) {
+      _showLoadingDialog();
+      try {
+        await _apiService.rejectAngsuran(angsuranId, alasan);
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Penolakan dikirim ke nasabah'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        _alasanController.clear();
+        _loadDetail();
+      } catch (e) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -253,8 +308,6 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
   }
 
   void _showImage(String path, String title) {
-    // Gunakan storageUrl dari ApiService
-    final imageUrl = '${_apiService.storageUrl}/$path';
 
     showDialog(
       context: context,
@@ -279,27 +332,8 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
               ),
             ),
             InteractiveViewer(
-              child: Image.network(
-                imageUrl,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const SizedBox(
-                    height: 200,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) => const SizedBox(
-                  height: 200,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                        Text('Gagal memuat gambar'),
-                      ],
-                    ),
-                  ),
-                ),
+              child: SecureImageWidget(
+                imageUrl: path,
               ),
             ),
           ],
@@ -663,6 +697,21 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                                         ),
                                       ),
                                     const SizedBox(width: 8),
+                                    if (angsuran['status'] == 'menunggu_konfirmasi')
+                                      ElevatedButton(
+                                        onPressed: () => _rejectAngsuran(angsuran['id']),
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                          minimumSize: const Size(0, 32),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                        child: const Text('Tolak'),
+                                      ),
+                                    if (angsuran['status'] == 'menunggu_konfirmasi')
+                                      const SizedBox(width: 8),
                                     ElevatedButton(
                                       onPressed: () =>
                                           _confirmPayAngsuran(angsuran['id']),
@@ -674,9 +723,9 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                                         minimumSize: const Size(0, 32),
                                         backgroundColor:
                                             angsuran['status'] ==
-                                                'menunggu_konfirmasi'
-                                            ? Colors.orange
-                                            : Colors.blue,
+                                                    'menunggu_konfirmasi'
+                                                ? Colors.orange
+                                                : Colors.blue,
                                       ),
                                       child: const Text('Verifikasi'),
                                     ),

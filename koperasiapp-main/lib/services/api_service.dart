@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
 
 class ApiService {
   // --- Link API ---
@@ -214,6 +217,11 @@ class ApiService {
 
   // --- Karyawan ---
 
+  Future<Map<String, dynamic>> getKaryawanDashboard() async {
+    final responseData = await get('karyawan/dashboard');
+    return responseData as Map<String, dynamic>;
+  }
+
   Future<List<dynamic>> getAnggota() async {
     final responseData = await get('anggota');
     if (responseData is List) {
@@ -327,6 +335,10 @@ class ApiService {
 
   Future<dynamic> payAngsuran(int angsuranId) async {
     return await post('angsuran/$angsuranId/pay', {});
+  }
+
+  Future<dynamic> rejectAngsuran(int angsuranId, String alasan) async {
+    return await post('angsuran/$angsuranId/reject', {'alasan_penolakan': alasan});
   }
 
   Future<List<dynamic>> getAllSimpanan() async {
@@ -605,5 +617,40 @@ class ApiService {
 
   Future<dynamic> resetPasswordMember(int id) async {
     return await post('anggota/$id/reset-password', {});
+  }
+
+  // --- PDF DOWNLOADER ---
+  Future<String> downloadPdf(String endpoint, String filename, {int? bulan, int? tahun}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    
+    // Bangun URL dengan query params
+    String url = '$_baseUrl/$endpoint?';
+    if (bulan != null) url += 'bulan=$bulan&';
+    if (tahun != null) url += 'tahun=$tahun&';
+    
+    if (url.endsWith('&') || url.endsWith('?')) {
+      url = url.substring(0, url.length - 1);
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Accept': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/$filename');
+      await file.writeAsBytes(response.bodyBytes);
+      
+      // Buka file pdf-nya
+      await OpenFile.open(file.path);
+      return file.path;
+    } else {
+      throw Exception('Gagal mengunduh PDF: ${response.statusCode}');
+    }
   }
 }

@@ -272,6 +272,14 @@ class _NasabahPinjamanDetailScreenState
                   'Nominal: ${formatRupiah(angsuran['jumlah_bayar'])}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
+                if (angsuran['status'] == 'ditolak' && angsuran['alasan_penolakan'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      'Revisi: ${angsuran['alasan_penolakan']}',
+                      style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
               ],
             ),
             trailing: isPaid
@@ -295,8 +303,9 @@ class _NasabahPinjamanDetailScreenState
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       minimumSize: const Size(60, 30),
+                      backgroundColor: angsuran['status'] == 'ditolak' ? Colors.red : null,
                     ),
-                    child: const Text('Bayar'),
+                    child: Text(angsuran['status'] == 'ditolak' ? 'Perbaiki' : 'Bayar', style: const TextStyle(fontSize: 12)),
                   ),
           ),
         );

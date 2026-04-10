@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../widgets/pdf_export_dialog.dart';
 
 class LaporanAngsuranScreen extends StatefulWidget {
   const LaporanAngsuranScreen({super.key});
@@ -21,6 +22,7 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
   List<Map<String, dynamic>> _groupedData = [];
   bool _isLoading = true;
   String _filterStatusLaporan = 'Aktif'; // Default filter
+  bool _isDownloadingPdf = false;
 
   // Summary Metrics
   double _totalMasukBulanIni = 0;
@@ -315,6 +317,38 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
     );
   }
 
+  Future<void> _exportPdf() async {
+    final result = await showDialog<Map<String, int?>?>(
+      context: context,
+      builder: (ctx) => const PdfExportDialog(title: 'Laporan Angsuran'),
+    );
+
+    if (result != null) {
+      setState(() => _isDownloadingPdf = true);
+      try {
+        await _apiService.downloadPdf(
+          'export/angsuran',
+          'Laporan_Angsuran.pdf',
+          bulan: result['bulan'],
+          tahun: result['tahun'],
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Berhasil membuka PDF'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isDownloadingPdf = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -325,6 +359,23 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
+        actions: [
+          if (_isDownloadingPdf)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+              tooltip: 'Cetak PDF',
+              onPressed: _exportPdf,
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

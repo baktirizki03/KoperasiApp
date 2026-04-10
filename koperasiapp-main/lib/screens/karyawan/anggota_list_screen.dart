@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import 'anggota_form_screen.dart';
 import 'anggota_detail_screen.dart';
 import 'anggota_trash_screen.dart';
+import '../../widgets/secure_image_widget.dart';
 
 class AnggotaListScreen extends StatefulWidget {
   const AnggotaListScreen({super.key});
@@ -110,9 +111,6 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
 
   void _showKtpReadOnlyDialog(Map<String, dynamic> anggota) {
     String ktpUrl = anggota['ktp_path'] ?? '';
-    if (!ktpUrl.startsWith('http')) {
-      ktpUrl = "http://10.0.2.2:8000/storage/$ktpUrl";
-    }
 
     showDialog(
       context: context,
@@ -130,24 +128,9 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
             ),
             Container(
               constraints: const BoxConstraints(maxHeight: 500, maxWidth: 500),
-              child: Image.network(
-                ktpUrl,
+              child: SecureImageWidget(
+                imageUrl: ktpUrl,
                 fit: BoxFit.contain,
-                errorBuilder: (ctx, error, stackTrace) {
-                  return const Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: Text('Gagal memuat gambar KTP'),
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                },
               ),
             ),
           ],
@@ -156,12 +139,8 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     );
   }
 
-  // --- Fungsi Verifikasi & Tolak ---
   void _showVerificationDialog(Map<String, dynamic> anggota) {
     String ktpUrl = anggota['ktp_path'] ?? '';
-    if (!ktpUrl.startsWith('http')) {
-      ktpUrl = "http://10.0.2.2:8000/storage/$ktpUrl";
-    }
 
     final dataList = [
       {'label': 'Nama Lengkap', 'value': anggota['nama_lengkap']},
@@ -221,17 +200,9 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
                 height: 200,
                 width: double.maxFinite,
                 color: Colors.grey[200],
-                child: Image.network(
-                  ktpUrl,
+                child: SecureImageWidget(
+                  imageUrl: ktpUrl,
                   fit: BoxFit.contain,
-                  errorBuilder: (ctx, error, stackTrace) {
-                    return Center(
-                      child: Text(
-                        'Gagal memuat KTP',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    );
-                  },
                 ),
               ),
               SizedBox(height: 15),

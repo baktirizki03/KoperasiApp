@@ -36,7 +36,7 @@ class _SecureImageWidgetState extends State<SecureImageWidget> {
   Future<void> _fetchImage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      final token = prefs.getString('token');
 
       // Get base URL from ApiService
       // Since ApiService has a private _baseUrl, we can construct the base domain
