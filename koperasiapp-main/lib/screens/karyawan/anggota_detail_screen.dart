@@ -109,6 +109,14 @@ class _AnggotaDetailScreenState extends State<AnggotaDetailScreen> {
             ),
             SizedBox(height: 16),
             _buildStatusBadge(anggota['is_ktp_verified'] == 1),
+            if (anggota['is_ktp_verified'] == 1 && (anggota['verified_by_name'] != null || anggota['verified_by'] != null))
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'Diverifikasi oleh: ${anggota['verified_by_name'] ?? anggota['verified_by']?['role']?.toString().toUpperCase() ?? '-'}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                ),
+              ),
             SizedBox(height: 12),
             if (ktpUrl.isNotEmpty)
               OutlinedButton.icon(

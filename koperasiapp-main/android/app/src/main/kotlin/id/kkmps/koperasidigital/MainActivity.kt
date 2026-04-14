@@ -1,4 +1,4 @@
-package com.example.koperasiapp
+package id.kkmps.koperasidigital
 
 import io.flutter.embedding.android.FlutterActivity
 

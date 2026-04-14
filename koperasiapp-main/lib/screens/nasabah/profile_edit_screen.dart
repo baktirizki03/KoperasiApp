@@ -66,8 +66,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     'Cerai Hidup',
     'Cerai Mati',
   ];
-  // Jenis kelamin options are simple enough but let's be consistent if needed.
-  // For now, JK uses a simple map in build, but we need to handle the value setting carefully.
   final List<String> _jenisKelaminOptions = ['laki-laki', 'perempuan'];
 
   @override

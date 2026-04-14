@@ -17,7 +17,7 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Dropdown Options
-  final List<String> _jenisKelaminOptions = ['Laki-laki', 'Perempuan'];
+  final List<String> _jenisKelaminOptions = ['LAKI-LAKI', 'PEREMPUAN'];
   final List<String> _agamaOptions = [
     'Islam',
     'Kristen',
@@ -60,6 +60,7 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
   String? _agamaValue;
   String? _statusPernikahanValue;
   late TextEditingController _namaIbuKandungController;
+  DateTime? _selectedTanggalLahir;
 
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
@@ -83,6 +84,14 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
     _tanggalLahirController = TextEditingController(
       text: data['tanggal_lahir'] ?? '',
     );
+    // Pre-populate date picker state if editing
+    if (data['tanggal_lahir'] != null && data['tanggal_lahir'].toString().isNotEmpty) {
+      try {
+        _selectedTanggalLahir = DateTime.parse(data['tanggal_lahir']);
+      } catch (_) {
+        _selectedTanggalLahir = null;
+      }
+    }
     _jenisKelaminValue = data['jenis_kelamin'];
 
     // Check if keys exist in incoming data, otherwise empty
@@ -196,6 +205,37 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
     super.dispose();
   }
 
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedTanggalLahir ?? DateTime(2000),
+      firstDate: DateTime(1940),
+      lastDate: DateTime.now(),
+      helpText: 'Pilih Tanggal Lahir',
+      cancelText: 'Batal',
+      confirmText: 'Pilih',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF0D47A1),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1A237E),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedTanggalLahir = picked;
+        _tanggalLahirController.text =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+      });
+    }
+  }
+
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
@@ -300,16 +340,25 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
                   ),
                   SizedBox(width: 10),
                   Expanded(
-                    child: TextFormField(
-                      controller: _tanggalLahirController,
-                      decoration: InputDecoration(
-                        labelText: 'Tanggal Lahir',
-                        hintText: 'YYYY-MM-DD',
+                    child: GestureDetector(
+                      onTap: _pickDate,
+                      child: AbsorbPointer(
+                        child: TextFormField(
+                          controller: _tanggalLahirController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            labelText: 'Tanggal Lahir',
+                            hintText: 'Pilih tanggal',
+                            suffixIcon: const Icon(
+                              Icons.calendar_today_rounded,
+                              color: Color(0xFF0D47A1),
+                            ),
+                          ),
+                          validator: (value) => value!.isEmpty
+                              ? 'Tanggal lahir tidak boleh kosong'
+                              : null,
+                        ),
                       ),
-                      keyboardType: TextInputType.datetime,
-                      validator: (value) => value!.isEmpty
-                          ? 'Tanggal lahir tidak boleh kosong'
-                          : null,
                     ),
                   ),
                 ],

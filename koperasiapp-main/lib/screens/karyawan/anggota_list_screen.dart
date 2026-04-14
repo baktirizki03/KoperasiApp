@@ -460,25 +460,30 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
                 // Status Verifikasi Icon
                 if (anggota['is_ktp_verified'] == 1)
                   Tooltip(
-                    message: anggota['verified_by'] != null
-                        ? 'Diverifikasi oleh: ${anggota['verified_by']['role'].toString().toUpperCase()}'
-                        : 'Terverifikasi',
+                    message: anggota['verified_by_name'] != null
+                        ? 'Diverifikasi oleh: ${anggota['verified_by_name']} (${anggota['verified_by_role']})'
+                        : (anggota['verified_by'] != null
+                            ? 'Diverifikasi oleh: ${anggota['verified_by']['role'].toString().toUpperCase()}'
+                            : 'Terverifikasi'),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.check_circle, color: Colors.green),
-                        if (anggota['verified_by'] != null)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4.0),
-                            child: Text(
-                              '${anggota['verified_by']['role'].toString().toUpperCase()}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4.0),
+                          child: Text(
+                            anggota['verified_by_name'] != null
+                                ? '${anggota['verified_by_name']}'
+                                : (anggota['verified_by'] != null
+                                    ? '${anggota['verified_by']['role'].toString().toUpperCase()}'
+                                    : 'VERIFIED'),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
+                        ),
                       ],
                     ),
                   )

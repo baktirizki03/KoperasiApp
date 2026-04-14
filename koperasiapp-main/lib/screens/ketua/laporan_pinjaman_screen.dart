@@ -531,9 +531,9 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
                         ],
                       ),
                       SizedBox(height: 8),
-                      if (item['acc_by'] != null)
+                      if (item['acc_by_name'] != null || item['acc_by'] != null)
                         Text(
-                          'Diverifikasi oleh: ${(item['acc_by'] is Map ? item['acc_by']['name'] : 'ID:${item['acc_by']}') ?? '-'}',
+                          'Diverifikasi oleh: ${item['acc_by_name'] ?? (item['acc_by'] is Map ? item['acc_by']['name'] : 'ID:${item['acc_by']}') ?? '-'} ${item['acc_by_role'] != null ? '(${item['acc_by_role']})' : ''}',
                           style: TextStyle(
                             fontSize: 11,
                             fontStyle: FontStyle.italic,

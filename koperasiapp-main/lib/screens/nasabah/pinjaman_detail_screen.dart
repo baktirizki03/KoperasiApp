@@ -197,6 +197,18 @@ class _NasabahPinjamanDetailScreenState
                         Text(
                           'Alamat: ${pinjaman['alamat_tempat_tinggal'] ?? '-'}',
                         ),
+                        if (pinjaman['acc_by_name'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Diverifikasi oleh: ${pinjaman['acc_by_name']} (${pinjaman['acc_by_role']})',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),

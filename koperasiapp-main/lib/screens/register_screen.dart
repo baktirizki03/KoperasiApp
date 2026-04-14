@@ -37,13 +37,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _noRekeningController = TextEditingController(); // New
   final _namaIbuKandungController = TextEditingController();
 
-  // Dropdown Values
   String? _jenisKelaminValue;
   String? _pendidikanValue;
   String? _agamaValue;
   String? _statusPernikahanValue;
+  DateTime? _selectedTanggalLahir;
 
-  final List<String> _jenisKelaminOptions = ['Laki-laki', 'Perempuan'];
+  final List<String> _jenisKelaminOptions = ['laki-laki', 'perempuan'];
   final List<String> _agamaOptions = [
     'Islam',
     'Kristen',
@@ -97,6 +97,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (pickedFile != null) {
       setState(() {
         _ktpImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedTanggalLahir ?? DateTime(2000),
+      firstDate: DateTime(1940),
+      lastDate: DateTime.now(),
+      locale: const Locale('id', 'ID'),
+      helpText: 'Pilih Tanggal Lahir',
+      cancelText: 'Batal',
+      confirmText: 'Pilih',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF0D47A1),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1A237E),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedTanggalLahir = picked;
+        // Format to YYYY-MM-DD for the backend
+        _tanggalLahirController.text =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
       });
     }
   }
@@ -235,11 +268,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: CustomTextField(
-                      label: 'Tgl Lahir (YYYY-MM-DD)',
-                      controller: _tanggalLahirController,
-                      keyboardType: TextInputType.datetime,
-                      validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+                    child: GestureDetector(
+                      onTap: _pickDate,
+                      child: AbsorbPointer(
+                        child: TextFormField(
+                          controller: _tanggalLahirController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            labelText: _selectedTanggalLahir == null
+                                ? 'Tanggal Lahir'
+                                : 'Tanggal Lahir',
+                            hintText: 'Pilih tanggal',
+                            filled: true,
+                            fillColor: const Color(0xFFF5F5F5),
+                            suffixIcon: const Icon(
+                              Icons.calendar_today_rounded,
+                              color: Color(0xFF0D47A1),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Pilih tanggal' : null,
+                        ),
+                      ),
                     ),
                   ),
                 ],

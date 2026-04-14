@@ -688,12 +688,22 @@ class _LaporanAngsuranScreenState extends State<LaporanAngsuranScreen> {
                   ),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
-                subtitle: Text(
-                  'Jatuh Tempo: ${item['tanggal_jatuh_tempo'] != null ? DateFormat('dd MMM yyyy').format(DateTime.tryParse(item['tanggal_jatuh_tempo']) ?? DateTime.now()) : '-'}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isOverdue ? Colors.red : Colors.grey,
-                  ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Jatuh Tempo: ${item['tanggal_jatuh_tempo'] != null ? DateFormat('dd MMM yyyy').format(DateTime.tryParse(item['tanggal_jatuh_tempo']) ?? DateTime.now()) : '-'}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isOverdue ? Colors.red : Colors.grey,
+                      ),
+                    ),
+                    if (isPaid && (item['acc_by_name'] != null || item['acc_by'] != null))
+                      Text(
+                        'Diterima oleh: ${item['acc_by_name'] ?? (item['acc_by'] is Map ? item['acc_by']['name'] : 'ID:${item['acc_by']}') ?? '-'} ${item['acc_by_role'] != null ? '(${item['acc_by_role']})' : ''}',
+                        style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Colors.grey[600]),
+                      ),
+                  ],
                 ),
                 trailing: _buildStatusBadgeMini(
                   isPaid ? 'Lunas' : (isOverdue ? 'Menunggak' : 'Belum Bayar'),

@@ -572,9 +572,9 @@ class _LaporanSimpananScreenState extends State<LaporanSimpananScreen> {
                         ),
                         style: TextStyle(fontSize: 11, color: Colors.grey),
                       ),
-                      if (item['acc_by'] != null)
+                      if (item['acc_by_name'] != null || item['acc_by'] != null)
                         Text(
-                          'Verified by: ${(item['acc_by'] is Map ? item['acc_by']['name'] : 'ID:${item['acc_by']}') ?? '-'}',
+                          'Verified by: ${item['acc_by_name'] ?? (item['acc_by'] is Map ? item['acc_by']['name'] : 'ID:${item['acc_by']}') ?? '-'} ${item['acc_by_role'] != null ? '(${item['acc_by_role']})' : ''}',
                           style: TextStyle(
                             fontSize: 10,
                             fontStyle: FontStyle.italic,
