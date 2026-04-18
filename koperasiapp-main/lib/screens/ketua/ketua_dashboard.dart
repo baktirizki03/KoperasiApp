@@ -129,7 +129,9 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
       mergedData['kas_masuk_sukarela'] = totalKasMasuk;
       mergedData['total_anggota'] = anggotaList.where((a) {
         final val = a['is_ktp_verified'];
-        return val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
+        final isVerified = val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
+        final userRole = (a['user']?['role'] ?? '').toString().toLowerCase();
+        return isVerified && userRole == 'nasabah';
       }).length;
       mergedData['simpanan_list'] = simpananList;
       mergedData['pinjaman_list'] = pinjamanList;

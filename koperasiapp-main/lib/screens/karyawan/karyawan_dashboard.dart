@@ -30,9 +30,43 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
 
   void _loadDashboard() {
     setState(() {
-      _dashboardFuture = _apiService.getKaryawanDashboard();
+      _dashboardFuture = _fetchDashboardData();
     });
     _fetchUserProfile();
+  }
+
+  Future<Map<String, dynamic>> _fetchDashboardData() async {
+    try {
+      final dashboard = await _apiService.getKaryawanDashboard();
+      final anggotaList = await _apiService.getAnggota();
+
+      final nasabahOnly = anggotaList.where((a) {
+        final userRole = (a['user']?['role'] ?? '').toString().toLowerCase();
+        return userRole == 'nasabah';
+      }).toList();
+
+      final totalNasabahVerified = nasabahOnly.where((a) {
+        final val = a['is_ktp_verified'];
+        return val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
+      }).length;
+
+      final countNasabahPending = nasabahOnly.where((a) {
+        final val = a['is_ktp_verified'];
+        final isVerified = val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
+        return !isVerified;
+      }).length;
+
+      final Map<String, dynamic> mergedData = Map.from(dashboard);
+      // Override counters with frontend calculated values
+      mergedData['counts'] ??= {};
+      mergedData['counts']['anggota'] = countNasabahPending;
+      mergedData['totals'] ??= {};
+      mergedData['totals']['anggota'] = totalNasabahVerified;
+
+      return mergedData;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> _fetchUserProfile() async {

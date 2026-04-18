@@ -46,6 +46,9 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
         final name = (anggota['nama_lengkap'] ?? '').toString().toLowerCase();
         final matchesSearch = name.contains(_searchQuery.toLowerCase());
 
+        final userRole = (anggota['user']?['role'] ?? '').toString().toLowerCase();
+        if (userRole != 'nasabah') return false;
+
         bool matchesFilter = true;
         final val = anggota['is_ktp_verified'];
         bool isVerified = val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
