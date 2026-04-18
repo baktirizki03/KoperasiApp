@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/api_service.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -20,7 +22,7 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
   List<dynamic> _allAnggota = [];
   List<dynamic> _filteredAnggota = [];
   String _searchQuery = '';
-  String _filterStatus = 'Semua'; // Semua, Terverifikasi, Belum
+  String _filterStatus = 'Semua';
 
   @override
   void initState() {
@@ -45,10 +47,12 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
         final matchesSearch = name.contains(_searchQuery.toLowerCase());
 
         bool matchesFilter = true;
+        final val = anggota['is_ktp_verified'];
+        bool isVerified = val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
         if (_filterStatus == 'Terverifikasi') {
-          matchesFilter = anggota['is_ktp_verified'] == 1;
+          matchesFilter = isVerified;
         } else if (_filterStatus == 'Belum') {
-          matchesFilter = anggota['is_ktp_verified'] != 1;
+          matchesFilter = !isVerified;
         }
 
         return matchesSearch && matchesFilter;
@@ -56,7 +60,6 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     });
   }
 
-  // --- Fungsi navigasi ke form ---
   void _navigateToForm({Map<String, dynamic>? anggota}) async {
     final result = await Navigator.of(context).push(
       MaterialPageRoute(builder: (ctx) => AnggotaFormScreen(anggota: anggota)),
@@ -71,16 +74,18 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     bool? confirm = await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Konfirmasi'),
-        content: Text('Apakah Anda yakin ingin menghapus anggota ini?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Konfirmasi', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text('Apakah Anda yakin ingin menghapus anggota ini?', style: GoogleFonts.poppins()),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Batal'),
+            child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey)),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Hapus'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, elevation: 0),
+            child: Text('Hapus', style: GoogleFonts.poppins(color: Colors.white)),
           ),
         ],
       ),
@@ -90,20 +95,12 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
       try {
         await _apiService.deleteAnggota(id);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Anggota berhasil dihapus'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('Anggota berhasil dihapus'), backgroundColor: Colors.green),
         );
         _loadAnggota();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal menghapus: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Gagal menghapus: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: Colors.red),
         );
       }
     }
@@ -111,27 +108,27 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
 
   void _showKtpReadOnlyDialog(Map<String, dynamic> anggota) {
     String ktpUrl = anggota['ktp_path'] ?? '';
-
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             AppBar(
-              title: const Text('Foto KTP'),
+              title: Text('Foto KTP', style: GoogleFonts.poppins(fontSize: 16)),
+              centerTitle: true,
+              backgroundColor: const Color(0xFF0D47A1),
               leading: IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () => Navigator.of(ctx).pop(),
               ),
               automaticallyImplyLeading: false,
             ),
             Container(
               constraints: const BoxConstraints(maxHeight: 500, maxWidth: 500),
-              child: SecureImageWidget(
-                imageUrl: ktpUrl,
-                fit: BoxFit.contain,
-              ),
+              child: SecureImageWidget(imageUrl: ktpUrl, fit: BoxFit.contain),
             ),
           ],
         ),
@@ -141,14 +138,10 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
 
   void _showVerificationDialog(Map<String, dynamic> anggota) {
     String ktpUrl = anggota['ktp_path'] ?? '';
-
     final dataList = [
       {'label': 'Nama Lengkap', 'value': anggota['nama_lengkap']},
       {'label': 'NIK (KTP)', 'value': anggota['nomor_ktp']},
-      {
-        'label': 'TTL',
-        'value': '${anggota['tempat_lahir']}, ${anggota['tanggal_lahir']}',
-      },
+      {'label': 'TTL', 'value': '${anggota['tempat_lahir']}, ${anggota['tanggal_lahir']}'},
       {'label': 'Alamat', 'value': anggota['domisili']},
       {'label': 'Pekerjaan', 'value': anggota['pekerjaan']},
     ];
@@ -156,96 +149,71 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Verifikasi Anggota'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text('Verifikasi Anggota', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Data Pendaftaran:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 5),
-              ...dataList.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 100,
-                        child: Text(
-                          '${item['label']}:',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          '${item['value'] ?? '-'}',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
+              Text('Data Pendaftaran:', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 12),
+              ...dataList.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 100,
+                      child: Text('${item['label']}:', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
+                    ),
+                    Expanded(
+                      child: Text('${item['value'] ?? '-'}', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w500)),
+                    ),
+                  ],
                 ),
-              ),
-              Divider(height: 20),
-              Text('Foto KTP:', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 5),
+              )),
+              const Divider(height: 24),
+              Text('Foto KTP:', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 12),
               Container(
                 height: 200,
-                width: double.maxFinite,
-                color: Colors.grey[200],
-                child: SecureImageWidget(
-                  imageUrl: ktpUrl,
-                  fit: BoxFit.contain,
+                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SecureImageWidget(imageUrl: ktpUrl, fit: BoxFit.contain),
                 ),
               ),
-              SizedBox(height: 15),
+              const SizedBox(height: 16),
               Text(
                 'Pastikan data di formulir SAMA dengan data di Foto KTP sebelum menyetujui.',
-                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                style: GoogleFonts.poppins(fontSize: 10, fontStyle: FontStyle.italic, color: Colors.orange[800]),
               ),
             ],
           ),
         ),
         actions: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 4.0),
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      _showRejectDialog(anggota['id']);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: BorderSide(color: Colors.red),
-                    ),
-                    child: Text('Tolak'),
-                  ),
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _showRejectDialog(anggota['id']);
+                  },
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: Text('Tolak', style: GoogleFonts.poppins()),
                 ),
               ),
+              const SizedBox(width: 8),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 4.0),
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      Navigator.of(ctx).pop();
-                      await _verifyAnggota(anggota['id']);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                    ),
-                    child: Text('Setujui'),
-                  ),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    await _verifyAnggota(anggota['id']);
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: Text('Setujui', style: GoogleFonts.poppins(color: Colors.white)),
                 ),
               ),
             ],
@@ -260,39 +228,39 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Tolak Verifikasi'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Tolak Verifikasi', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Masukkan alasan penolakan (Wajib):'),
+            Text('Masukkan alasan penolakan (Wajib):', style: GoogleFonts.poppins(fontSize: 13)),
+            const SizedBox(height: 12),
             TextField(
               controller: reasonController,
-              decoration: InputDecoration(hintText: 'Misal: Foto KTP buram'),
-              maxLines: 2,
+              decoration: InputDecoration(
+                hintText: 'Misal: Foto KTP buram',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              maxLines: 3,
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Batal'),
-          ),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey))),
           ElevatedButton(
             onPressed: () async {
               if (reasonController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Alasan harus diisi!'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alasan harus diisi!'), backgroundColor: Colors.red));
                 return;
               }
               Navigator.of(ctx).pop();
               await _rejectAnggota(id, reasonController.text);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Kirim Penolakan'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, elevation: 0),
+            child: Text('Kirim Penolakan', style: GoogleFonts.poppins(color: Colors.white)),
           ),
         ],
       ),
@@ -302,46 +270,20 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
   Future<void> _verifyAnggota(int id) async {
     try {
       await _apiService.verifyKtp(id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Anggota berhasil diverifikasi'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Anggota berhasil diverifikasi'), backgroundColor: Colors.green));
       _loadAnggota();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Gagal verifikasi: ${e.toString().replaceAll('Exception: ', '')}',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal verifikasi: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: Colors.red));
     }
   }
 
   Future<void> _rejectAnggota(int id, String reason) async {
     try {
       await _apiService.rejectKtp(id, reason);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Verifikasi ditolak. Member perlu daftar ulang/hubungi admin.',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verifikasi ditolak. Member perlu daftar ulang/hubungi admin.'), backgroundColor: Colors.orange));
       _loadAnggota();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Gagal menolak: ${e.toString().replaceAll('Exception: ', '')}',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menolak: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: Colors.red));
     }
   }
 
@@ -349,18 +291,15 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     bool? confirm = await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Reset Password'),
-        content: Text(
-          'Apakah Anda yakin ingin mereset password anggota "${anggota['nama_lengkap']}"? Password baru akan digenerate secara acak.',
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Reset Password', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text('Apakah Anda yakin ingin mereset password anggota "${anggota['nama_lengkap']}"?', style: GoogleFonts.poppins()),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Batal'),
-          ),
-          TextButton(
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey))),
+          ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Reset', style: TextStyle(color: Colors.red)),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, elevation: 0),
+            child: Text('Reset', style: GoogleFonts.poppins(color: Colors.white)),
           ),
         ],
       ),
@@ -369,178 +308,12 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     if (confirm == true) {
       try {
         final response = await _apiService.resetPasswordMember(anggota['id']);
-        // Response should contain the message from backend with the new password
         final message = response['message'] ?? 'Password berhasil direset';
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.green,
-            duration: Duration(
-              seconds: 10,
-            ), // Show longer so they can read/copy
-            action: SnackBarAction(
-              label: 'OK',
-              textColor: Colors.white,
-              onPressed: () {},
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.green, duration: const Duration(seconds: 10), action: SnackBarAction(label: 'OK', textColor: Colors.white, onPressed: () {})));
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal reset password: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal reset password: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: Colors.red));
       }
     }
-  }
-
-  Widget _buildFilterChip(String label) {
-    return FilterChip(
-      label: Text(label),
-      selected: _filterStatus == label,
-      onSelected: (bool selected) {
-        if (selected) {
-          setState(() {
-            _filterStatus = label;
-            _applyFilter();
-          });
-        }
-      },
-      backgroundColor: Colors.grey[200],
-      selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-      labelStyle: TextStyle(
-        color: _filterStatus == label
-            ? Theme.of(context).colorScheme.primary
-            : Colors.black,
-        fontWeight: _filterStatus == label
-            ? FontWeight.bold
-            : FontWeight.normal,
-      ),
-    );
-  }
-
-  Widget _buildAnggotaCard(Map<String, dynamic> anggota) {
-    final role = Provider.of<AuthProvider>(context, listen: false).role;
-    final isKetua = role == 'ketua';
-    final isKaryawan = role == 'karyawan';
-
-    return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            title: Text(anggota['nama_lengkap']),
-            subtitle: Text(anggota['user']?['email'] ?? 'Email tidak tersedia'),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // KTP View Button (Read Only)
-                if (anggota['ktp_path'] != null &&
-                    anggota['ktp_path'].toString().isNotEmpty)
-                  IconButton(
-                    icon: Icon(Icons.image_search, color: Colors.blueGrey),
-                    tooltip: 'Lihat Foto KTP',
-                    onPressed: () => _showKtpReadOnlyDialog(anggota),
-                  ),
-
-                SizedBox(width: 8),
-
-                // Status Verifikasi Icon
-                if (anggota['is_ktp_verified'] == 1)
-                  Tooltip(
-                    message: anggota['verified_by_name'] != null
-                        ? 'Diverifikasi oleh: ${anggota['verified_by_name']} (${anggota['verified_by_role']})'
-                        : (anggota['verified_by'] != null
-                            ? 'Diverifikasi oleh: ${anggota['verified_by']['role'].toString().toUpperCase()}'
-                            : 'Terverifikasi'),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4.0),
-                          child: Text(
-                            anggota['verified_by_name'] != null
-                                ? '${anggota['verified_by_name']}'
-                                : (anggota['verified_by'] != null
-                                    ? '${anggota['verified_by']['role'].toString().toUpperCase()}'
-                                    : 'VERIFIED'),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else if (anggota['ktp_path'] != null &&
-                    anggota['ktp_path'].toString().isNotEmpty)
-                  IconButton(
-                    icon: Icon(Icons.hourglass_top, color: Colors.orange),
-                    tooltip: 'Menunggu Verifikasi (Lihat KTP)',
-                    onPressed: () => _showVerificationDialog(anggota),
-                  )
-                else
-                  Tooltip(
-                    message: 'Belum Upload KTP',
-                    child: Icon(Icons.cancel, color: Colors.grey),
-                  ),
-                SizedBox(width: 8),
-
-                // Detail Button
-                IconButton(
-                  icon: Icon(Icons.info, color: Colors.blue),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            AnggotaDetailScreen(anggota: anggota),
-                      ),
-                    );
-                  },
-                  tooltip: 'Detail Anggota',
-                ),
-
-                // Reset Password Button (Only Ketua)
-                if (isKetua)
-                  IconButton(
-                    icon: Icon(Icons.lock_reset, color: Colors.orange),
-                    onPressed: () => _resetPassword(anggota),
-                    tooltip: 'Reset Password',
-                  ),
-
-                // Edit Button (Only Admin - but currently disabled for Karyawan too per previous tasks)
-                // USER REQUEST: Ketua should NOT see Edit Button.
-                // if (isKetua) ... REMOVED
-
-                // Delete Button (Only Ketua)
-                if (isKetua)
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deleteAnggota(anggota['id']),
-                    tooltip: 'Hapus Anggota',
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -549,108 +322,204 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
     final isKetuaOrKaryawan = role == 'ketua' || role == 'karyawan';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Daftar Anggota'),
-        actions: [
-          if (isKetuaOrKaryawan)
-            IconButton(
-              icon: Icon(Icons.delete_outline),
-              tooltip: 'Tempat Sampah',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AnggotaTrashScreen()),
-                ).then((_) {
-                  // Reload list in case a member was restored
-                  _loadAnggota();
-                });
-              },
-            ),
-        ],
-      ),
-      body: FutureBuilder<List<dynamic>>(
-        future: _anggotaFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            // ... error handling logic (simplified for brevity, keep existing logic if complex) ...
-            return Center(
-              child: Text(
-                'Error: ${snapshot.error.toString().replaceAll('Exception: ', '')}',
-              ),
-            );
-          }
-
-          // Gunakan _filteredAnggota yang sudah di-update oleh logic lokal
-          // Snapshot data hanya trigger awal, selanjutnya pakai variable state local
-
-          return Column(
+      backgroundColor: const Color(0xFFF1F5FF),
+      body: Column(
+        children: [
+          // --- CUSTOM GRADIENT HEADER ---
+          Stack(
             children: [
-              // --- SEARCH & FILTER SECTION ---
               Container(
-                padding: const EdgeInsets.all(16),
-                color: Colors.white,
-                child: Column(
-                  children: [
-                    TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Cari nama anggota...',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                      ),
-                      onChanged: (value) {
-                        _searchQuery = value;
-                        _applyFilter();
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildFilterChip('Semua'),
-                          SizedBox(width: 8),
-                          _buildFilterChip('Terverifikasi'),
-                          SizedBox(width: 8),
-                          _buildFilterChip('Belum'),
-                        ],
-                      ),
-                    ),
-                  ],
+                height: 180,
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
                 ),
               ),
-
-              Expanded(
-                child: _filteredAnggota.isEmpty
-                    ? Center(child: Text('Tidak ada anggota ditemukan.'))
-                    : RefreshIndicator(
-                        onRefresh: () async => _loadAnggota(),
-                        child: ListView.builder(
-                          itemCount: _filteredAnggota.length,
-                          itemBuilder: (ctx, index) {
-                            final anggota = _filteredAnggota[index];
-                            return _buildAnggotaCard(anggota);
-                          },
-                        ),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20), onPressed: () => Navigator.pop(context)),
+                          Text('Daftar Anggota', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          if (isKetuaOrKaryawan)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AnggotaTrashScreen())).then((_) => _loadAnggota()),
+                            )
+                          else
+                            const SizedBox(width: 48),
+                        ],
                       ),
+                      const SizedBox(height: 16),
+                      // Search Bar Card
+                      Container(
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))]),
+                        child: TextField(
+                          onChanged: (value) { _searchQuery = value; _applyFilter(); },
+                          decoration: InputDecoration(
+                            hintText: 'Cari nama anggota...',
+                            hintStyle: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 14),
+                            prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF0D47A1)),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
+                    ],
+                  ),
+                ),
               ),
             ],
-          );
-        },
+          ),
+
+          // --- FILTER SECTION ---
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterChip('Semua'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Terverifikasi'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Belum'),
+                ],
+              ),
+            ).animate().fadeIn(delay: 200.ms),
+          ),
+
+          Expanded(
+            child: FutureBuilder<List<dynamic>>(
+              future: _anggotaFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}', style: GoogleFonts.poppins()));
+                }
+                if (_filteredAnggota.isEmpty) {
+                  return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]), const SizedBox(height: 16), Text('Tidak ada anggota ditemukan', style: GoogleFonts.poppins(color: Colors.grey[500]))]));
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async => _loadAnggota(),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    itemCount: _filteredAnggota.length,
+                    itemBuilder: (ctx, index) => _buildAnggotaCard(_filteredAnggota[index], index),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      floatingActionButton:
-          (Provider.of<AuthProvider>(context).role == 'karyawan')
-          ? FloatingActionButton(
-              onPressed: () => _navigateToForm(),
-              tooltip: 'Tambah Anggota',
-              child: Icon(Icons.add),
-            )
+      floatingActionButton: (role == 'karyawan')
+          ? Container(
+              decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)]), borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: const Color(0xFF083271).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))]),
+              child: FloatingActionButton(
+                onPressed: () => _navigateToForm(),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                child: const Icon(Icons.add_rounded, color: Colors.white),
+              ),
+            ).animate().fadeIn(delay: 500.ms).scale()
           : null,
     );
+  }
+
+  Widget _buildFilterChip(String label) {
+    bool isSelected = _filterStatus == label;
+    return GestureDetector(
+      onTap: () { setState(() { _filterStatus = label; _applyFilter(); }); },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF0D47A1) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? const Color(0xFF0D47A1) : Colors.grey[200]!),
+          boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF0D47A1).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))] : null,
+        ),
+        child: Text(label, style: GoogleFonts.poppins(color: isSelected ? Colors.white : Colors.grey[600], fontSize: 13, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+      ),
+    );
+  }
+
+  Widget _buildAnggotaCard(Map<String, dynamic> anggota, int index) {
+    final role = Provider.of<AuthProvider>(context, listen: false).role;
+    final isKetua = role == 'ketua';
+    final val = anggota['is_ktp_verified'];
+    final bool isVerified = val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: isVerified ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: (isVerified ? Colors.green : Colors.orange).withOpacity(0.1), shape: BoxShape.circle),
+                  child: Icon(isVerified ? Icons.person_rounded : Icons.person_search_rounded, color: isVerified ? Colors.green : Colors.orange, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(anggota['nama_lengkap'], style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
+                      Text(anggota['user']?['email'] ?? 'No Email', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])),
+                    ],
+                  ),
+                ),
+                // Status Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: (isVerified ? Colors.green : Colors.orange).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Text(isVerified ? 'VERIFIKASI' : 'PENDING', style: GoogleFonts.poppins(color: isVerified ? Colors.green : Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                // Info/Detail
+                IconButton(icon: const Icon(Icons.info_outline_rounded, color: Colors.blue, size: 20), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AnggotaDetailScreen(anggota: anggota))), tooltip: 'Detail'),
+                // KTP Action
+                if (anggota['ktp_path'] != null && anggota['ktp_path'].toString().isNotEmpty)
+                  IconButton(
+                    icon: Icon(isVerified ? Icons.image_outlined : Icons.verified_user_outlined, color: isVerified ? Colors.blueGrey : Colors.orange, size: 20),
+                    onPressed: () => isVerified ? _showKtpReadOnlyDialog(anggota) : _showVerificationDialog(anggota),
+                    tooltip: isVerified ? 'Lihat KTP' : 'Verifikasi KTP',
+                  ),
+                const Spacer(),
+                // Reset Password (Ketua)
+                if (isKetua) IconButton(icon: const Icon(Icons.lock_reset_rounded, color: Colors.orange, size: 20), onPressed: () => _resetPassword(anggota), tooltip: 'Reset Password'),
+                // Delete (Ketua)
+                if (isKetua) IconButton(icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20), onPressed: () => _deleteAnggota(anggota['id']), tooltip: 'Hapus'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: (index * 50).ms).slideY(begin: 0.1, end: 0);
   }
 }

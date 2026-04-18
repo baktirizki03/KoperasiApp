@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:io';
 import '../services/api_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../widgets/register_widgets.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,10 +16,11 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
   final ImagePicker _picker = ImagePicker();
+  final PageController _pageController = PageController();
 
+  int _currentStep = 0;
   bool _isLoading = false;
   File? _ktpImage;
 
@@ -32,9 +35,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _alamatController = TextEditingController();
   final _teleponController = TextEditingController();
   final _pekerjaanController = TextEditingController();
-  final _departemenController = TextEditingController(); // New
-  final _namaBankController = TextEditingController(); // New
-  final _noRekeningController = TextEditingController(); // New
+  final _departemenController = TextEditingController();
+  final _namaBankController = TextEditingController();
+  final _noRekeningController = TextEditingController();
   final _namaIbuKandungController = TextEditingController();
 
   String? _jenisKelaminValue;
@@ -71,7 +74,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
+    _pageController.dispose();
     _namaController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -82,11 +94,126 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _alamatController.dispose();
     _teleponController.dispose();
     _pekerjaanController.dispose();
-    _departemenController.dispose(); // New
-    _namaBankController.dispose(); // New
-    _noRekeningController.dispose(); // New
+    _departemenController.dispose();
+    _namaBankController.dispose();
+    _noRekeningController.dispose();
     _namaIbuKandungController.dispose();
     super.dispose();
+  }
+
+  void _nextStep() {
+    if (_currentStep < 3) {
+      bool stepValid = false;
+      if (_currentStep == 0) {
+        stepValid = _validateStep1();
+      } else if (_currentStep == 1) {
+        stepValid = _validateStep2();
+      } else if (_currentStep == 2) {
+        stepValid = _validateStep3();
+      }
+
+      if (stepValid) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        setState(() => _currentStep++);
+      }
+    }
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      setState(() => _currentStep--);
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
+  bool _validateStep1() {
+    if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
+      _showError('Email tidak valid');
+      return false;
+    }
+    final pwd = _passwordController.text;
+    bool isPwdValid = pwd.length >= 8 &&
+        pwd.contains(RegExp(r'[A-Z]')) &&
+        pwd.contains(RegExp(r'[a-z]')) &&
+        pwd.contains(RegExp(r'[0-9]')) &&
+        pwd.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+
+    if (!isPwdValid) {
+      _showError('Password tidak memenuhi kriteria keamanan');
+      return false;
+    }
+    if (_confirmPasswordController.text != pwd) {
+      _showError('Konfirmasi password tidak sama');
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateStep2() {
+    if (_namaController.text.isEmpty) {
+      _showError('Nama Lengkap wajib diisi');
+      return false;
+    }
+    if (_noKtpController.text.length < 16) {
+      _showError('NIK harus 16 digit');
+      return false;
+    }
+    if (_tempatLahirController.text.isEmpty ||
+        _tanggalLahirController.text.isEmpty) {
+      _showError('Tempat/Tanggal Lahir wajib diisi');
+      return false;
+    }
+    if (_jenisKelaminValue == null) {
+      _showError('Pilih Jenis Kelamin');
+      return false;
+    }
+    if (_alamatController.text.isEmpty) {
+      _showError('Alamat Domisili wajib diisi');
+      return false;
+    }
+    if (_teleponController.text.isEmpty) {
+      _showError('No. Telepon wajib diisi');
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateStep3() {
+    if (_pekerjaanController.text.isEmpty) {
+      _showError('Pekerjaan wajib diisi');
+      return false;
+    }
+    if (_pendidikanValue == null) {
+      _showError('Pilih Pendidikan Terakhir');
+      return false;
+    }
+    if (_agamaValue == null) {
+      _showError('Pilih Agama');
+      return false;
+    }
+    if (_statusPernikahanValue == null) {
+      _showError('Pilih Status Pernikahan');
+      return false;
+    }
+    if (_namaIbuKandungController.text.isEmpty) {
+      _showError('Nama Ibu Kandung wajib diisi');
+      return false;
+    }
+    return true;
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   Future<void> _pickImage() async {
@@ -109,8 +236,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       lastDate: DateTime.now(),
       locale: const Locale('id', 'ID'),
       helpText: 'Pilih Tanggal Lahir',
-      cancelText: 'Batal',
-      confirmText: 'Pilih',
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -127,7 +252,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (picked != null) {
       setState(() {
         _selectedTanggalLahir = picked;
-        // Format to YYYY-MM-DD for the backend
         _tanggalLahirController.text =
             '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
       });
@@ -135,15 +259,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
     if (_ktpImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Mohon upload foto KTP Anda'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Mohon upload foto KTP Anda');
       return;
     }
 
@@ -162,9 +279,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'domisili': _alamatController.text,
         'no_telepon': _teleponController.text,
         'pekerjaan': _pekerjaanController.text,
-        'departemen': _departemenController.text, // New
-        'nama_bank': _namaBankController.text, // New
-        'no_rekening': _noRekeningController.text, // New
+        'departemen': _departemenController.text,
+        'nama_bank': _namaBankController.text,
+        'no_rekening': _noRekeningController.text,
         'pendidikan': _pendidikanValue!,
         'agama': _agamaValue!,
         'status_pernikahan': _statusPernikahanValue!,
@@ -181,15 +298,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: const Text('Registrasi Berhasil'),
             content: const Text(
-              'Pendaftaran Anda berhasil dikirim.\n\nAkun Anda sedang dalam proses verifikasi oleh Admin (1x24 jam). Anda belum dapat login hingga verifikasi selesai.',
+              'Pendaftaran Anda berhasil dikirim.\n\nAkun Anda sedang dalam proses verifikasi oleh Admin (1x24 jam).',
             ),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(ctx).pop(); // Close dialog
-                  Navigator.of(context).pop(); // Back to Login Screen
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pop();
                 },
                 child: const Text('OK'),
               ),
@@ -199,14 +318,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal Mendaftar: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showError(
+            'Gagal Mendaftar: ${e.toString().replaceAll('Exception: ', '')}');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -216,255 +329,604 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pendaftaran Anggota Baru')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildSectionTitle('Data Akun'),
-              CustomTextField(
-                label: 'Email',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                icon: Icons.email,
-                validator: (v) =>
-                    v!.isEmpty || !v.contains('@') ? 'Email tidak valid' : null,
+      backgroundColor: const Color(0xFFF1F5FF), // Harmonious light blue
+      body: Stack(
+        children: [
+          // --- PREXIUM GRADIENT HEADER ---
+          Container(
+            height: 220,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              CustomTextField(
-                label: 'Password',
-                controller: _passwordController,
-                obscureText: true,
-                icon: Icons.lock,
-                validator: (v) => v!.length < 8 ? 'Min 8 karakter' : null,
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(40),
               ),
-              CustomTextField(
-                label: 'Konfirmasi Password',
-                controller: _confirmPasswordController,
-                obscureText: true,
-                icon: Icons.lock_outline,
-                validator: (v) => v != _passwordController.text
-                    ? 'Password tidak sama'
-                    : null,
-              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0D47A1).withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+          ),
 
-              const SizedBox(height: 20),
-              _buildSectionTitle('Data Pribadi'),
-              CustomTextField(
-                label: 'Nama Lengkap (Sesuai KTP)',
-                controller: _namaController,
-                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'Tempat Lahir',
-                      controller: _tempatLahirController,
-                      validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _pickDate,
-                      child: AbsorbPointer(
-                        child: TextFormField(
-                          controller: _tanggalLahirController,
-                          readOnly: true,
-                          decoration: InputDecoration(
-                            labelText: _selectedTanggalLahir == null
-                                ? 'Tanggal Lahir'
-                                : 'Tanggal Lahir',
-                            hintText: 'Pilih tanggal',
-                            filled: true,
-                            fillColor: const Color(0xFFF5F5F5),
-                            suffixIcon: const Icon(
-                              Icons.calendar_today_rounded,
-                              color: Color(0xFF0D47A1),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Pilih tanggal' : null,
+          SafeArea(
+            child: Column(
+              children: [
+                // --- CUSTOM APP BAR ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                        onPressed: _previousStep,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _getStepTitle(),
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-              _buildDropdown(
-                'Jenis Kelamin',
-                _jenisKelaminValue,
-                _jenisKelaminOptions,
-                (v) => setState(() => _jenisKelaminValue = v),
-              ),
-              CustomTextField(
-                label: 'Nomor KTP (NIK)',
-                controller: _noKtpController,
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.length < 16 ? 'NIK harus 16 digit' : null,
-              ),
-              CustomTextField(
-                label: 'Alamat Domisili',
-                controller: _alamatController,
-                maxLines: 2,
-                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-              ),
-              CustomTextField(
-                label: 'No. Telepon / WA',
-                controller: _teleponController,
-                keyboardType: TextInputType.phone,
-                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-              ),
-
-              const SizedBox(height: 20),
-              _buildSectionTitle('Data Lainnya'),
-              CustomTextField(
-                label: 'Pekerjaan',
-                controller: _pekerjaanController,
-                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-              ),
-              CustomTextField(
-                label: 'Departemen / Unit Kerja', // New
-                controller: _departemenController,
-                validator: (v) => null, // Optional
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'Nama Bank', // New
-                      controller: _namaBankController,
-                      validator: (v) => null, // Optional
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'No. Rekening', // New
-                      controller: _noRekeningController,
-                      keyboardType: TextInputType.number,
-                      validator: (v) => null, // Optional
-                    ),
-                  ),
-                ],
-              ),
-              _buildDropdown(
-                'Pendidikan Terakhir',
-                _pendidikanValue,
-                _pendidikanOptions,
-                (v) => setState(() => _pendidikanValue = v),
-              ),
-              _buildDropdown(
-                'Agama',
-                _agamaValue,
-                _agamaOptions,
-                (v) => setState(() => _agamaValue = v),
-              ),
-              _buildDropdown(
-                'Status Pernikahan',
-                _statusPernikahanValue,
-                _statusPernikahanOptions,
-                (v) => setState(() => _statusPernikahanValue = v),
-              ),
-              CustomTextField(
-                label: 'Nama Ibu Kandung',
-                controller: _namaIbuKandungController,
-                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-              ),
-
-              const SizedBox(height: 20),
-              _buildSectionTitle('Upload KTP'),
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: _ktpImage != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.file(_ktpImage!, fit: BoxFit.cover),
-                        )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(
-                              Icons.camera_alt,
-                              size: 50,
-                              color: Colors.grey,
-                            ),
-                            Text('Tap untuk upload foto KTP'),
-                          ],
-                        ),
                 ),
-              ),
 
-              const SizedBox(height: 30),
-              CustomButton(
-                text: 'DAFTAR SEKARANG',
-                onPressed: _submit,
-                isLoading: _isLoading,
-              ),
-              const SizedBox(height: 20),
-            ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: StepProgressBar(
+                    currentStep: _currentStep + 1,
+                    totalSteps: 4,
+                  ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
+                ),
+
+                const SizedBox(height: 24),
+
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _buildStep1().animate().fadeIn().slideX(begin: 0.1, end: 0),
+                      _buildStep2().animate().fadeIn().slideX(begin: 0.1, end: 0),
+                      _buildStep3().animate().fadeIn().slideX(begin: 0.1, end: 0),
+                      _buildStep4().animate().fadeIn().slideX(begin: 0.1, end: 0),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CustomButton(
+              text: _currentStep == 3 ? 'Kirim Pendaftaran' : 'Lanjut',
+              onPressed: _currentStep == 3 ? _submit : _nextStep,
+              isLoading: _isLoading,
+              icon: Icons.arrow_forward,
+            ),
+            const SizedBox(height: 16),
+            if (_currentStep == 0)
+              _buildTermsText()
+            else if (_currentStep == 3)
+              Text(
+                'Dengan mengetuk tombol, Anda menyetujui Syarat & Ketentuan berlaku.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey),
+              )
+            else
+              const SizedBox.shrink(),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  String _getStepTitle() {
+    switch (_currentStep) {
+      case 0:
+        return 'Pendaftaran Anggota';
+      case 1:
+        return 'Data Diri';
+      case 2:
+        return 'Data Lainnya';
+      case 3:
+        return 'Unggah Identitas';
+      default:
+        return '';
+    }
+  }
+
+  Widget _buildStep1() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: _buildCardContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Detail Keamanan',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Langkah awal untuk mengamankan akses akun Anda.',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            _buildLabel('Alamat Email'),
+            CustomTextField(
+              label: 'nama@contoh.com',
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              icon: Icons.email_outlined,
+            ),
+            const SizedBox(height: 16),
+            _buildLabel('Kata Sandi'),
+            CustomTextField(
+              label: 'Minimal 8 karakter',
+              controller: _passwordController,
+              obscureText: true,
+              icon: Icons.lock_outline,
+            ),
+            const SizedBox(height: 16),
+            _buildLabel('Konfirmasi Kata Sandi'),
+            CustomTextField(
+              label: 'Ulangi kata sandi',
+              controller: _confirmPasswordController,
+              obscureText: true,
+              icon: Icons.verified_user_outlined,
+            ),
+            const SizedBox(height: 24),
+            SecurityChecklist(password: _passwordController.text),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep2() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: _buildCardContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Identitas Diri',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Pastikan data sesuai dengan KTP asli Anda.',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            _buildLabel('Nama Lengkap (Sesuai KTP)'),
+            CustomTextField(
+              label: 'Masukkan nama lengkap Anda',
+              controller: _namaController,
+              icon: Icons.person_outline,
+            ),
+            const SizedBox(height: 16),
+            _buildLabel('Nomor KTP (NIK)'),
+            CustomTextField(
+              label: '16 digit nomor induk kependudukan',
+              controller: _noKtpController,
+              keyboardType: TextInputType.number,
+              icon: Icons.credit_card_outlined,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel('Tempat Lahir'),
+                      CustomTextField(
+                        label: 'Kota/Kab',
+                        controller: _tempatLahirController,
+                        icon: Icons.location_on_outlined,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel('Tanggal Lahir'),
+                      GestureDetector(
+                        onTap: _pickDate,
+                        child: AbsorbPointer(
+                          child: CustomTextField(
+                            label: 'Pilih Tanggal',
+                            controller: _tanggalLahirController,
+                            icon: Icons.calendar_today_outlined,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildLabel('Jenis Kelamin'),
+            _buildDropdown('Pilih jenis kelamin', _jenisKelaminValue,
+                _jenisKelaminOptions, (v) => setState(() => _jenisKelaminValue = v)),
+            const SizedBox(height: 16),
+            _buildLabel('Alamat Domisili Saat Ini'),
+            CustomTextField(
+              label: 'Contoh: Jl. Merdeka No. 123',
+              controller: _alamatController,
+              icon: Icons.home_outlined,
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+            _buildLabel('No. Telepon / WhatsApp'),
+            CustomTextField(
+              label: '08123456789',
+              controller: _teleponController,
+              keyboardType: TextInputType.phone,
+              icon: Icons.phone_outlined,
+            ),
+            const SizedBox(height: 24),
+            const InfoBox(
+              text:
+                  'Data ini akan diverifikasi oleh sistem kami. Mohon isi dengan benar.',
+              icon: Icons.verified_outlined,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep3() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: _buildCardContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Informasi Pendukung',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Data pekerjaan dan rekening untuk keperluan transaksi.',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            _buildLabel('Pekerjaan'),
+            CustomTextField(
+              label: 'Contoh: Karyawan Swasta',
+              controller: _pekerjaanController,
+              icon: Icons.work_outline,
+            ),
+            const SizedBox(height: 16),
+            _buildLabel('Departemen / Unit Kerja'),
+            CustomTextField(
+              label: 'Contoh: Teknologi Informasi',
+              controller: _departemenController,
+              icon: Icons.business_outlined,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel('Nama Bank'),
+                      CustomTextField(
+                        label: 'BCA / Mandiri',
+                        controller: _namaBankController,
+                        icon: Icons.account_balance_outlined,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel('No. Rekening'),
+                      CustomTextField(
+                        label: '000123456',
+                        controller: _noRekeningController,
+                        keyboardType: TextInputType.number,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildLabel('Pendidikan Terakhir'),
+            _buildDropdown('Pilih Pendidikan', _pendidikanValue,
+                _pendidikanOptions, (v) => setState(() => _pendidikanValue = v)),
+            const SizedBox(height: 16),
+            _buildLabel('Agama'),
+            _buildDropdown('Pilih Agama', _agamaValue, _agamaOptions,
+                (v) => setState(() => _agamaValue = v)),
+            const SizedBox(height: 16),
+            _buildLabel('Status Pernikahan'),
+            _buildDropdown('Pilih Status', _statusPernikahanValue,
+                _statusPernikahanOptions, (v) => setState(() => _statusPernikahanValue = v)),
+            const SizedBox(height: 16),
+            _buildLabel('Nama Ibu Kandung'),
+            CustomTextField(
+              label: 'Sesuai Akta Kelahiran',
+              controller: _namaIbuKandungController,
+              icon: Icons.person_outline,
+            ),
+            const SizedBox(height: 24),
+            const InfoBox(
+              text:
+                  'Data aman. Kami menggunakan sistem keamanan tingkat tinggi untuk menjaga privasi Anda.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep4() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: _buildCardContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Langkah Terakhir',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Mohon unggah foto KTP asli Anda.',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5FF),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D47A1).withOpacity(0.05),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    CustomPaint(
+                      painter: DottedBorderPainter(),
+                      child: Container(),
+                    ),
+                    Center(
+                      child: _ktpImage != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.file(_ktpImage!, fit: BoxFit.cover),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF0D47A1).withOpacity(0.1),
+                                        blurRadius: 10,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    Icons.camera_alt_outlined,
+                                    size: 32,
+                                    color: const Color(0xFF0D47A1),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Unggah Foto KTP',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF1A1A1A),
+                                  ),
+                                ),
+                                Text(
+                                  'Format: JPG, PNG (Maks. 5MB)',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const PhotoGuide(),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF0D47A1).withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D47A1).withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
       child: Text(
-        title,
+        text,
         style: GoogleFonts.poppins(
-          fontSize: 18,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: const Color(0xFF1A237E), // Dark Navy
+          color: Colors.black87,
         ),
       ),
     );
   }
 
   Widget _buildDropdown(
-    String label,
+    String hint,
     String? value,
     List<String> items,
     ValueChanged<String?> onChanged,
   ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: DropdownButtonFormField<String>(
-        value: value,
-        decoration: InputDecoration(
-          labelText: label,
-          // Theme handles border and fill
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50], // Very light grey instead of white for contrast
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButtonFormField<String>(
+          value: value,
+          hint: Text(hint, style: GoogleFonts.poppins(fontSize: 14)),
+          isExpanded: true,
+          decoration: const InputDecoration(border: InputBorder.none),
+          items: items
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .toList(),
+          onChanged: onChanged,
         ),
-        icon: const Icon(
-          Icons.arrow_drop_down_circle,
-          color: Color(0xFF1A237E),
-        ),
-        items: items
-            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-            .toList(),
-        onChanged: onChanged,
-        validator: (v) => v == null ? 'Pilih $label' : null,
       ),
     );
   }
+
+  Widget _buildTermsText() {
+    return Text.rich(
+      TextSpan(
+        text: 'Dengan mendaftar, Anda menyetujui ',
+        style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey),
+        children: [
+          TextSpan(
+            text: 'Syarat & Ketentuan',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: const Color(0xFF0D47A1)),
+          ),
+          const TextSpan(text: ' serta '),
+          TextSpan(
+            text: 'Kebijakan Privasi',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: const Color(0xFF0D47A1)),
+          ),
+          const TextSpan(text: ' kami.'),
+        ],
+      ),
+      textAlign: TextAlign.center,
+    );
+  }
+}
+
+class DottedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.grey[300]!
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    const dashWidth = 5;
+    const dashSpace = 3;
+
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          const Radius.circular(20)));
+
+    final dashPath = Path();
+    for (final Metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < Metric.length) {
+        dashPath.addPath(
+          Metric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+    canvas.drawPath(dashPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

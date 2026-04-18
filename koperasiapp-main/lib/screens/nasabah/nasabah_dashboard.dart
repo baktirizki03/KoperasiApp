@@ -42,64 +42,53 @@ class _NasabahDashboardState extends State<NasabahDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _getTitle(),
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.exit_to_app_rounded, color: Colors.white),
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-            },
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFFF1F5FF),
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 10,
-              offset: const Offset(0, -3),
+              color: const Color(0xFF0D47A1).withOpacity(0.08),
+              spreadRadius: 0,
+              blurRadius: 20,
+              offset: const Offset(0, -4),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           child: BottomNavigationBar(
             items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(
                 icon: Icon(Icons.dashboard_rounded),
+                activeIcon: Icon(Icons.dashboard_rounded),
                 label: 'Dashboard',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.monetization_on_rounded),
+                icon: Icon(Icons.monetization_on_outlined),
+                activeIcon: Icon(Icons.monetization_on_rounded),
                 label: 'Pinjaman',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.account_balance_wallet_rounded),
+                icon: Icon(Icons.account_balance_wallet_outlined),
+                activeIcon: Icon(Icons.account_balance_wallet_rounded),
                 label: 'Simpanan',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.person_rounded),
+                icon: Icon(Icons.person_outline_rounded),
+                activeIcon: Icon(Icons.person_rounded),
                 label: 'Profil',
               ),
             ],
             currentIndex: _selectedIndex,
-            selectedItemColor: Theme.of(context).colorScheme.primary,
-            unselectedItemColor: Colors.grey[400],
+            selectedItemColor: const Color(0xFF0D47A1),
+            unselectedItemColor: const Color(0xFF9E9E9E),
             showUnselectedLabels: true,
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.white,
-            selectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-            unselectedLabelStyle: GoogleFonts.poppins(),
+            selectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 11),
+            unselectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 11),
             elevation: 0,
             onTap: (index) => setState(() => _selectedIndex = index),
           ),

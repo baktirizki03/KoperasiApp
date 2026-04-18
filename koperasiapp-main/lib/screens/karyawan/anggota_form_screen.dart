@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/api_service.dart';
@@ -18,31 +20,9 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
 
   // Dropdown Options
   final List<String> _jenisKelaminOptions = ['LAKI-LAKI', 'PEREMPUAN'];
-  final List<String> _agamaOptions = [
-    'Islam',
-    'Kristen',
-    'Katolik',
-    'Hindu',
-    'Buddha',
-    'Konghucu',
-    'Lainnya',
-  ];
-  final List<String> _pendidikanOptions = [
-    'SD',
-    'SMP',
-    'SMA/SMK',
-    'D3',
-    'S1',
-    'S2',
-    'S3',
-    'Lainnya',
-  ];
-  final List<String> _statusPernikahanOptions = [
-    'Belum Menikah',
-    'Menikah',
-    'Cerai Hidup',
-    'Cerai Mati',
-  ];
+  final List<String> _agamaOptions = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'];
+  final List<String> _pendidikanOptions = ['SD', 'SMP', 'SMA/SMK', 'D3', 'S1', 'S2', 'S3', 'Lainnya'];
+  final List<String> _statusPernikahanOptions = ['Belum Menikah', 'Menikah', 'Cerai Hidup', 'Cerai Mati'];
 
   // Controllers & Values
   late TextEditingController _namaController;
@@ -53,15 +33,14 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
   late TextEditingController _alamatController;
   late TextEditingController _teleponController;
   late TextEditingController _pekerjaanController;
-  late TextEditingController _departemenController; // New
-  late TextEditingController _namaBankController; // New
-  late TextEditingController _noRekeningController; // New
+  late TextEditingController _departemenController;
+  late TextEditingController _namaBankController;
+  late TextEditingController _noRekeningController;
   String? _pendidikanValue;
   String? _agamaValue;
   String? _statusPernikahanValue;
   late TextEditingController _namaIbuKandungController;
   DateTime? _selectedTanggalLahir;
-
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
 
@@ -74,116 +53,50 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
   void initState() {
     super.initState();
     _isEditMode = widget.anggota != null;
-
     final data = widget.anggota ?? {};
 
     _namaController = TextEditingController(text: data['nama_lengkap'] ?? '');
-    _tempatLahirController = TextEditingController(
-      text: data['tempat_lahir'] ?? '',
-    );
-    _tanggalLahirController = TextEditingController(
-      text: data['tanggal_lahir'] ?? '',
-    );
-    // Pre-populate date picker state if editing
+    _tempatLahirController = TextEditingController(text: data['tempat_lahir'] ?? '');
+    _tanggalLahirController = TextEditingController(text: data['tanggal_lahir'] ?? '');
+    
     if (data['tanggal_lahir'] != null && data['tanggal_lahir'].toString().isNotEmpty) {
-      try {
-        _selectedTanggalLahir = DateTime.parse(data['tanggal_lahir']);
-      } catch (_) {
-        _selectedTanggalLahir = null;
-      }
+      try { _selectedTanggalLahir = DateTime.parse(data['tanggal_lahir']); } catch (_) { _selectedTanggalLahir = null; }
     }
     _jenisKelaminValue = data['jenis_kelamin'];
-
-    // Check if keys exist in incoming data, otherwise empty
     _noKtpController = TextEditingController(text: data['nomor_ktp'] ?? '');
-    _alamatController = TextEditingController(
-      text: data['alamat'] ?? data['domisili'] ?? '',
-    );
+    _alamatController = TextEditingController(text: data['alamat'] ?? data['domisili'] ?? '');
     _teleponController = TextEditingController(text: data['no_telepon'] ?? '');
     _pekerjaanController = TextEditingController(text: data['pekerjaan'] ?? '');
-    _departemenController = TextEditingController(
-      text: data['departemen'] ?? '',
-    ); // New
-    _namaBankController = TextEditingController(
-      text: data['nama_bank'] ?? '',
-    ); // New
-    _noRekeningController = TextEditingController(
-      text: data['no_rekening'] ?? '',
-    ); // New
+    _departemenController = TextEditingController(text: data['departemen'] ?? '');
+    _namaBankController = TextEditingController(text: data['nama_bank'] ?? '');
+    _noRekeningController = TextEditingController(text: data['no_rekening'] ?? '');
 
-    // --- Robust Dropdown Initialization ---
-    // Helper to safely set dropdown value (Trim -> Match Case-Insensitive -> Add if Missing)
-    void setupDropdown(
-      String? rawValue,
-      List<String> options,
-      Function(String?) setValue,
-    ) {
-      if (rawValue == null || rawValue.isEmpty) {
-        setValue(null);
-        return;
-      }
+    void setupDropdown(String? rawValue, List<String> options, Function(String?) setValue) {
+      if (rawValue == null || rawValue.isEmpty) { setValue(null); return; }
       String cleanValue = rawValue.toString().trim();
-
-      // Cari match yang case-insensitive
       String? existingOption;
       try {
-        existingOption = options.firstWhere(
-          (opt) => opt.toLowerCase() == cleanValue.toLowerCase(),
-        );
-      } catch (e) {
-        existingOption = null;
-      }
-
-      if (existingOption != null) {
-        setValue(existingOption); // Pakai opsi yang sudah ada (casing sesuai)
-      } else {
-        options.add(cleanValue); // Tambahkan opsi baru jika tidak ada
-        setValue(cleanValue);
-      }
+        existingOption = options.firstWhere((opt) => opt.toLowerCase() == cleanValue.toLowerCase());
+      } catch (e) { existingOption = null; }
+      if (existingOption != null) { setValue(existingOption); } 
+      else { options.add(cleanValue); setValue(cleanValue); }
     }
 
-    setupDropdown(
-      data['pendidikan'],
-      _pendidikanOptions,
-      (val) => _pendidikanValue = val,
-    );
+    setupDropdown(data['pendidikan'], _pendidikanOptions, (val) => _pendidikanValue = val);
     setupDropdown(data['agama'], _agamaOptions, (val) => _agamaValue = val);
-    setupDropdown(
-      data['status_pernikahan'],
-      _statusPernikahanOptions,
-      (val) => _statusPernikahanValue = val,
-    );
+    setupDropdown(data['status_pernikahan'], _statusPernikahanOptions, (val) => _statusPernikahanValue = val);
 
-    // Special Handling for Jenis Kelamin (karena value di build() di-lowercase)
     String? rawJK = data['jenis_kelamin'];
     if (rawJK != null && rawJK.isNotEmpty) {
       String cleanJK = rawJK.toString().trim();
-      String lowerJK = cleanJK.toLowerCase();
-
-      // Cek apakah opsi source-nya ada (untuk label)
-      bool sourceExists = _jenisKelaminOptions.any(
-        (opt) => opt.toLowerCase() == cleanJK.toLowerCase(),
-      );
-
-      if (!sourceExists) {
-        // Jika tidak ada di source options (misal "Pria"), tambahkan ke source agar ter-render widgetnya
-        // Kita tambahkan versi aslinya (Title Case) agar labelnya bagus
+      if (!_jenisKelaminOptions.any((opt) => opt.toLowerCase() == cleanJK.toLowerCase())) {
         _jenisKelaminOptions.add(cleanJK);
       }
-
-      // Value harus lower karena di build() item.value = value.toLowerCase()
-      _jenisKelaminValue = lowerJK;
-    } else {
-      _jenisKelaminValue = null;
+      _jenisKelaminValue = cleanJK.toLowerCase();
     }
 
-    _namaIbuKandungController = TextEditingController(
-      text: data['nama_ibu_kandung'] ?? '',
-    );
-
-    _emailController = TextEditingController(
-      text: _isEditMode ? (data['user']?['email'] ?? '') : '',
-    );
+    _namaIbuKandungController = TextEditingController(text: data['nama_ibu_kandung'] ?? '');
+    _emailController = TextEditingController(text: _isEditMode ? (data['user']?['email'] ?? '') : '');
     _passwordController = TextEditingController();
   }
 
@@ -196,9 +109,9 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
     _alamatController.dispose();
     _teleponController.dispose();
     _pekerjaanController.dispose();
-    _departemenController.dispose(); // New
-    _namaBankController.dispose(); // New
-    _noRekeningController.dispose(); // New
+    _departemenController.dispose();
+    _namaBankController.dispose();
+    _noRekeningController.dispose();
     _namaIbuKandungController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -211,27 +124,15 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
       initialDate: _selectedTanggalLahir ?? DateTime(2000),
       firstDate: DateTime(1940),
       lastDate: DateTime.now(),
-      helpText: 'Pilih Tanggal Lahir',
-      cancelText: 'Batal',
-      confirmText: 'Pilih',
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF0D47A1),
-              onPrimary: Colors.white,
-              onSurface: Color(0xFF1A237E),
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: Color(0xFF0D47A1))),
+        child: child!,
+      ),
     );
     if (picked != null) {
       setState(() {
         _selectedTanggalLahir = picked;
-        _tanggalLahirController.text =
-            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+        _tanggalLahirController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
       });
     }
   }
@@ -239,341 +140,394 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-
       Map<String, String> data = {
         'nama_lengkap': _namaController.text,
         'tempat_lahir': _tempatLahirController.text,
-        'tanggal_lahir':
-            _tanggalLahirController.text, // Pastikan format YYYY-MM-DD
+        'tanggal_lahir': _tanggalLahirController.text,
         'jenis_kelamin': _jenisKelaminValue!,
         'nomor_ktp': _noKtpController.text,
         'domisili': _alamatController.text,
         'no_telepon': _teleponController.text,
         'pekerjaan': _pekerjaanController.text,
-        'departemen': _departemenController.text, // New
-        'nama_bank': _namaBankController.text, // New
-        'no_rekening': _noRekeningController.text, // New
+        'departemen': _departemenController.text,
+        'nama_bank': _namaBankController.text,
+        'no_rekening': _noRekeningController.text,
         'pendidikan': _pendidikanValue!,
         'agama': _agamaValue!,
         'status_pernikahan': _statusPernikahanValue!,
         'nama_ibu_kandung': _namaIbuKandungController.text,
         'email': _emailController.text,
       };
-
-      // Hanya tambahkan password jika diisi (untuk tambah atau ganti password)
-      if (_passwordController.text.isNotEmpty) {
-        data['password'] = _passwordController.text;
-      }
+      if (_passwordController.text.isNotEmpty) { data['password'] = _passwordController.text; }
 
       try {
-        if (_isEditMode) {
-          // Mode Edit (Update currently doesn't support file upload in this snippet, keeping existing logic for now or updating if needed.
-          // User asked for "Add Member" fix. Update might need separate request if we want to support updating KTP too.)
-          await _apiService.updateAnggota(widget.anggota!['id'], data);
-        } else {
-          // Mode Tambah
+        if (_isEditMode) { await _apiService.updateAnggota(widget.anggota!['id'], data); } 
+        else {
           if (_ktpFile == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Harap upload foto KTP'),
-                backgroundColor: Colors.orange,
-              ),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Harap upload foto KTP'), backgroundColor: Colors.orange));
             setState(() => _isLoading = false);
             return;
           }
-
           final bytes = await _ktpFile!.readAsBytes();
           await _apiService.createAnggota(data, bytes.toList(), _ktpFile!.name);
         }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Data berhasil disimpan'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).pop(true); // Kirim 'true' untuk menandakan sukses
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil disimpan'), backgroundColor: Colors.green));
+        Navigator.of(context).pop(true);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyimpan data: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      } finally {
-        setState(() => _isLoading = false);
-      }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan data: $e'), backgroundColor: Colors.red));
+      } finally { setState(() => _isLoading = false); }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditMode ? 'Edit Anggota' : 'Tambah Anggota'),
-      ),
+      backgroundColor: const Color(0xFFF1F5FF),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildSectionTitle('Data Diri'),
-              TextFormField(
-                controller: _namaController,
-                decoration: InputDecoration(labelText: 'Nama Lengkap'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Nama tidak boleh kosong' : null,
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _tempatLahirController,
-                      decoration: InputDecoration(labelText: 'Tempat Lahir'),
-                      validator: (value) => value!.isEmpty
-                          ? 'Tempat lahir tidak boleh kosong'
-                          : null,
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _pickDate,
-                      child: AbsorbPointer(
-                        child: TextFormField(
-                          controller: _tanggalLahirController,
-                          readOnly: true,
-                          decoration: InputDecoration(
-                            labelText: 'Tanggal Lahir',
-                            hintText: 'Pilih tanggal',
-                            suffixIcon: const Icon(
-                              Icons.calendar_today_rounded,
-                              color: Color(0xFF0D47A1),
+        child: Column(
+          children: [
+            // --- PREMIUM HEADER ---
+            _buildHeader(),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    // --- IDENTITAS SECTION ---
+                    _buildFormSection(
+                      title: 'Data Identitas',
+                      icon: Icons.badge_outlined,
+                      children: [
+                        _buildInputField(
+                          controller: _namaController,
+                          label: 'Nama Lengkap',
+                          icon: Icons.person_outline_rounded,
+                          validator: (v) => v!.isEmpty ? 'Nama tidak boleh kosong' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: _buildInputField(
+                              controller: _tempatLahirController,
+                              label: 'Tempat Lahir',
+                              icon: Icons.location_on_outlined,
+                              validator: (v) => v!.isEmpty ? 'Tempat lahir wajib diisi' : null,
+                            )),
+                            const SizedBox(width: 8),
+                            Expanded(child: GestureDetector(
+                              onTap: _pickDate,
+                              child: AbsorbPointer(child: _buildInputField(
+                                controller: _tanggalLahirController,
+                                label: 'Tanggal Lahir',
+                                icon: Icons.calendar_today_rounded,
+                                readOnly: true,
+                              )),
+                            )),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDropdownField(
+                          value: _jenisKelaminValue,
+                          label: 'Jenis Kelamin',
+                          icon: Icons.wc_outlined,
+                          options: _jenisKelaminOptions,
+                          onChanged: (v) => setState(() => _jenisKelaminValue = v),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInputField(
+                          controller: _noKtpController,
+                          label: 'Nomor NIK/KTP',
+                          icon: Icons.credit_card_outlined,
+                          keyboardType: TextInputType.number,
+                          validator: (v) => v!.isEmpty ? 'NIK wajib diisi' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInputField(
+                          controller: _alamatController,
+                          label: 'Alamat Lengkap',
+                          icon: Icons.home_outlined,
+                          maxLines: 2,
+                          validator: (v) => v!.isEmpty ? 'Alamat wajib diisi' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInputField(
+                          controller: _teleponController,
+                          label: 'Nomor WhatsApp',
+                          icon: Icons.phone_android_rounded,
+                          keyboardType: TextInputType.phone,
+                          validator: (v) => v!.isEmpty ? 'Nomor telepon wajib diisi' : null,
+                        ),
+                      ],
+                    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+
+                    const SizedBox(height: 16),
+
+                    // --- UPLOAD SECTION ---
+                    if (!_isEditMode) 
+                    _buildFormSection(
+                      title: 'Unggah Dokumen',
+                      icon: Icons.cloud_upload_outlined,
+                      children: [
+                        _buildPhotoUploadArea(),
+                      ],
+                    ).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
+
+                    const SizedBox(height: 16),
+
+                    // --- PEKERJAAN & BANK SECTION ---
+                    _buildFormSection(
+                      title: 'Pekerjaan & Rekening',
+                      icon: Icons.work_outline_rounded,
+                      children: [
+                        _buildInputField(controller: _pekerjaanController, label: 'Pekerjaan', icon: Icons.work_history_outlined),
+                        const SizedBox(height: 12),
+                        _buildInputField(controller: _departemenController, label: 'Departemen/Unit', icon: Icons.business_outlined),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: _buildInputField(controller: _namaBankController, label: 'Nama Bank', icon: Icons.account_balance_outlined)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildInputField(controller: _noRekeningController, label: 'No Rekening', icon: Icons.numbers_rounded, keyboardType: TextInputType.number)),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDropdownField(
+                          value: _pendidikanValue,
+                          label: 'Pendidikan Terakhir',
+                          icon: Icons.school_outlined,
+                          options: _pendidikanOptions,
+                          onChanged: (v) => setState(() => _pendidikanValue = v),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: _buildDropdownField(
+                              value: _agamaValue,
+                              label: 'Agama',
+                              icon: Icons.church_outlined,
+                              options: _agamaOptions,
+                              onChanged: (v) => setState(() => _agamaValue = v),
+                            )),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildDropdownField(
+                              value: _statusPernikahanValue,
+                              label: 'Status',
+                              icon: Icons.people_outline_rounded,
+                              options: _statusPernikahanOptions,
+                              onChanged: (v) => setState(() => _statusPernikahanValue = v),
+                            )),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInputField(controller: _namaIbuKandungController, label: 'Nama Ibu Kandung', icon: Icons.family_restroom_outlined),
+                      ],
+                    ).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
+
+                    const SizedBox(height: 16),
+
+                    // --- AKUN SECTION ---
+                    _buildFormSection(
+                      title: 'Akses Akun Anggota',
+                      icon: Icons.lock_outline_rounded,
+                      children: [
+                        _buildInputField(
+                          controller: _emailController,
+                          label: 'Email Anggota',
+                          icon: Icons.email_outlined,
+                          enabled: !_isEditMode,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) => v!.isEmpty ? 'Email wajib diisi' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInputField(
+                          controller: _passwordController,
+                          label: 'Password',
+                          icon: Icons.key_outlined,
+                          obscureText: true,
+                          hint: _isEditMode ? 'Kosongkan jika tidak diubah' : null,
+                          validator: (v) => (!_isEditMode && (v == null || v.isEmpty)) ? 'Password wajib diisi' : null,
+                        ),
+                      ],
+                    ).animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
+
+                    const SizedBox(height: 40),
+
+                    // --- SUBMIT BUTTON ---
+                    _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : Container(
+                          width: double.infinity,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)]),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [BoxShadow(color: const Color(0xFF0D47A1).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: _submitForm,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            child: Text(
+                              _isEditMode ? 'SIMPAN PERUBAHAN' : 'TAMBAH ANGGOTA BARU',
+                              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
                           ),
-                          validator: (value) => value!.isEmpty
-                              ? 'Tanggal lahir tidak boleh kosong'
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: _jenisKelaminValue,
-                decoration: InputDecoration(labelText: 'Jenis Kelamin'),
-                items: _jenisKelaminOptions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value.toLowerCase(), // Store lowercase value
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (newValue) =>
-                    setState(() => _jenisKelaminValue = newValue),
-                validator: (value) =>
-                    (value == null) ? 'Pilih jenis kelamin' : null,
-              ),
-              TextFormField(
-                controller: _noKtpController,
-                decoration: InputDecoration(labelText: 'No KTP/SIM'),
-                keyboardType: TextInputType.number,
-                validator: (value) =>
-                    value!.isEmpty ? 'No KTP/SIM tidak boleh kosong' : null,
-              ),
-              const SizedBox(height: 10),
-              if (!_isEditMode) ...[
-                const Text(
-                  'Foto KTP',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () async {
-                    final XFile? image = await _picker.pickImage(
-                      source: ImageSource.gallery,
-                      imageQuality: 50,
-                    );
-                    if (image != null) {
-                      setState(() {
-                        _ktpFile = image;
-                      });
-                    }
-                  },
-                  child: Container(
-                    height: 150,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey[200],
-                    ),
-                    child: _ktpFile != null
-                        ? Image.file(File(_ktpFile!.path), fit: BoxFit.cover)
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(
-                                Icons.camera_alt,
-                                size: 40,
-                                color: Colors.grey,
-                              ),
-                              Text('Tap untuk upload KTP'),
-                            ],
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-              ],
-              TextFormField(
-                controller: _alamatController,
-                decoration: InputDecoration(labelText: 'Alamat'),
-                maxLines: 2,
-                validator: (value) =>
-                    value!.isEmpty ? 'Alamat tidak boleh kosong' : null,
-              ),
-              TextFormField(
-                controller: _teleponController,
-                decoration: InputDecoration(labelText: 'No Telp/HP'),
-                keyboardType: TextInputType.phone,
-                validator: (value) =>
-                    value!.isEmpty ? 'No telepon tidak boleh kosong' : null,
-              ),
-              TextFormField(
-                controller: _pekerjaanController,
-                decoration: InputDecoration(labelText: 'Pekerjaan/Usaha'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Pekerjaan tidak boleh kosong' : null,
-              ),
-              TextFormField(
-                controller: _departemenController, // New
-                decoration: InputDecoration(labelText: 'Departemen/Unit Kerja'),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _namaBankController, // New
-                      decoration: InputDecoration(labelText: 'Nama Bank'),
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _noRekeningController, // New
-                      decoration: InputDecoration(labelText: 'No Rekening'),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
+                        ).animate().scale(delay: 400.ms),
 
-              SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                initialValue: _pendidikanValue,
-                decoration: InputDecoration(labelText: 'Pendidikan'),
-                items: _pendidikanOptions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (newValue) =>
-                    setState(() => _pendidikanValue = newValue),
-                validator: (value) =>
-                    (value == null) ? 'Pilih pendidikan' : null,
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: _agamaValue,
-                decoration: InputDecoration(labelText: 'Agama'),
-                items: _agamaOptions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (newValue) => setState(() => _agamaValue = newValue),
-                validator: (value) => (value == null) ? 'Pilih agama' : null,
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: _statusPernikahanValue,
-                decoration: InputDecoration(labelText: 'Status Pernikahan'),
-                items: _statusPernikahanOptions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (newValue) =>
-                    setState(() => _statusPernikahanValue = newValue),
-                validator: (value) =>
-                    (value == null) ? 'Pilih status pernikahan' : null,
-              ),
-              TextFormField(
-                controller: _namaIbuKandungController,
-                decoration: InputDecoration(labelText: 'Nama Ibu/Bapa Kandung'),
-                validator: (value) => value!.isEmpty
-                    ? 'Nama Ibu/Bapa Kandung tidak boleh kosong'
-                    : null,
-              ),
-
-              SizedBox(height: 20),
-              _buildSectionTitle('Akun Pengguna'),
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                enabled: !_isEditMode,
-                validator: (value) =>
-                    value!.isEmpty ? 'Email tidak boleh kosong' : null,
-              ),
-              TextFormField(
-                controller: _passwordController,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  hintText: _isEditMode
-                      ? 'Kosongkan jika tidak ingin diubah'
-                      : null,
+                    const SizedBox(height: 40),
+                  ],
                 ),
-                obscureText: true,
-                validator: (value) {
-                  if (!_isEditMode && (value == null || value.isEmpty)) {
-                    return 'Password tidak boleh kosong';
-                  }
-                  return null;
-                },
               ),
-
-              SizedBox(height: 20),
-              _isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: _submitForm,
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Text('Simpan Data Anggota'),
-                    ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).primaryColor,
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.only(top: 60, bottom: 20, left: 20, right: 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)]),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            _isEditMode ? 'Rubah Data Anggota' : 'Anggota Baru',
+            style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormSection({required String title, required IconData icon, required List<Widget> children}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: const Color(0xFF0D47A1)),
+              const SizedBox(width: 12),
+              Text(title, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool readOnly = false,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? hint,
+    bool enabled = true,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      readOnly: readOnly,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      enabled: enabled,
+      style: GoogleFonts.poppins(fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, color: const Color(0xFF0D47A1), size: 16),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+      validator: validator,
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String? value,
+    required String label,
+    required IconData icon,
+    required List<String> options,
+    required Function(String?) onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      isExpanded: true,
+      value: value,
+      items: options.map((opt) => DropdownMenuItem(
+        value: opt.toLowerCase(), 
+        child: Text(
+          opt, 
+          style: GoogleFonts.poppins(fontSize: 12),
+          overflow: TextOverflow.ellipsis,
+        )
+      )).toList(),
+      onChanged: onChanged,
+      style: GoogleFonts.poppins(fontSize: 13, color: Colors.black87),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: const Color(0xFF0D47A1), size: 16),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+      ),
+      validator: (v) => v == null ? 'Wajib dipilih' : null,
+    );
+  }
+
+  Widget _buildPhotoUploadArea() {
+    return InkWell(
+      onTap: () async {
+        final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+        if (image != null) setState(() => _ktpFile = image);
+      },
+      child: Container(
+        height: 160,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.blue.shade100, style: BorderStyle.solid, width: 2),
         ),
+        child: _ktpFile != null
+          ? ClipRRect(borderRadius: BorderRadius.circular(18), child: Image.file(File(_ktpFile!.path), fit: BoxFit.cover))
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_a_photo_outlined, size: 40, color: Colors.blue.shade300),
+                const SizedBox(height: 12),
+                Text('Ketuk untuk Unggah KTP', style: GoogleFonts.poppins(color: Colors.blue.shade400, fontSize: 13, fontWeight: FontWeight.w500)),
+              ],
+            ),
       ),
     );
   }

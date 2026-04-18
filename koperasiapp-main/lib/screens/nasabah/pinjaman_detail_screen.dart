@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../utils/currency_formatter.dart';
 import '../../services/api_service.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'pinjaman_form_screen.dart';
 
 class NasabahPinjamanDetailScreen extends StatefulWidget {
@@ -29,9 +30,7 @@ class _NasabahPinjamanDetailScreenState
 
   void _loadDetail() {
     setState(() {
-      _pinjamanDetailFuture = _apiService.getMyPinjamanDetail(
-        widget.pinjamanId,
-      );
+      _pinjamanDetailFuture = _apiService.getMyPinjamanDetail(widget.pinjamanId);
     });
   }
 
@@ -40,29 +39,19 @@ class _NasabahPinjamanDetailScreenState
     if (image == null) return;
 
     try {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Mengirim bukti bayar...')));
-
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mengirim bukti bayar...')));
       final bytes = await image.readAsBytes();
       await _apiService.confirmAngsuran(angsuranId, bytes, image.name);
 
       if (mounted) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Konfirmasi terkirim!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konfirmasi terkirim!'), backgroundColor: Colors.green));
         _loadDetail();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red));
       }
     }
   }
@@ -70,258 +59,216 @@ class _NasabahPinjamanDetailScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Detail Pinjaman')),
+      backgroundColor: const Color(0xFFF1F5FF),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _pinjamanDetailFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: Text('Data tidak ditemukan.'));
-          }
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) return const Center(child: Text('Data tidak ditemukan.'));
 
           final pinjaman = snapshot.data!;
-          // final angsurans = pinjaman['angsurans'] as List;
+          final angsurans = (pinjaman['angsurans'] as List? ?? []);
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Card(
-                  child: ListTile(
-                    title: Text(formatRupiah(pinjaman['nominal'])),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Status: ${pinjaman['status'].toUpperCase()}'),
-                        if (pinjaman['status'] == 'ditolak' &&
-                            pinjaman['alasan_penolakan'] != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.red[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Alasan Penolakan:',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.red,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  pinjaman['alasan_penolakan'],
-                                  style: const TextStyle(color: Colors.red),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        if (pinjaman['status'] == 'perlu_perbaikan') ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.orange[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orange),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Permintaan Perbaikan:',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.orange,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  pinjaman['alasan_penolakan'] ?? '-',
-                                  style: const TextStyle(color: Colors.orange),
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      final result = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (ctx) => PinjamanFormScreen(
-                                            pinjaman: pinjaman,
-                                          ),
-                                        ),
-                                      );
-                                      if (result == true) {
-                                        _loadDetail();
-                                      }
-                                    },
-                                    icon: const Icon(Icons.edit),
-                                    label: const Text('Perbaiki Pengajuan'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.orange,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        const Divider(),
-                        Text(
-                          'Keperluan: ${pinjaman['untuk_keperluan'] ?? '-'}',
-                        ),
-                        Text('Tenor: ${pinjaman['tenor_cicilan']} bulan'),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Departemen: ${pinjaman['departemen_pekerjaan'] ?? '-'}',
-                        ),
-                        Text(
-                          'Pendapatan: ${formatRupiah(pinjaman['pendapatan_per_bulan'])}',
-                        ),
-                        Text(
-                          'Bank: ${pinjaman['nama_bank'] ?? '-'} (${pinjaman['no_rekening'] ?? '-'})',
-                        ),
-                        Text(
-                          'Alamat: ${pinjaman['alamat_tempat_tinggal'] ?? '-'}',
-                        ),
-                        if (pinjaman['acc_by_name'] != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              'Diverifikasi oleh: ${pinjaman['acc_by_name']} (${pinjaman['acc_by_role']})',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+          return CustomScrollView(
+            slivers: [
+              _buildHeader(),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSummaryCard(pinjaman),
+                      const SizedBox(height: 32),
+                      _buildInstallmentHeader(),
+                      const SizedBox(height: 16),
+                      if (angsurans.isEmpty) _buildEmptyState() else ...angsurans.map((ang) => _buildAngsuranItem(ang)).toList(),
+                      const SizedBox(height: 24),
+                      _buildTipsBox(),
+                      const SizedBox(height: 40),
+                    ],
                   ),
                 ),
-                if (pinjaman['angsurans'] != null) ...[
-                  const SizedBox(height: 20),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4.0),
-                    child: Text(
-                      'Jadwal Angsuran',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildAngsuranList(pinjaman['angsurans'] as List),
-                ],
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildAngsuranList(List<dynamic> angsurans) {
-    if (angsurans.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('Belum ada data angsuran.'),
-      );
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: angsurans.length,
-      itemBuilder: (context, index) {
-        final angsuran = angsurans[index];
-        final isPaid = angsuran['status'] == 'lunas';
-        final isPending = angsuran['status'] == 'menunggu_konfirmasi';
-
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: isPaid
-                  ? Colors.green
-                  : isPending
-                  ? Colors.orange
-                  : Colors.red,
-              child: Icon(
-                isPaid
-                    ? Icons.check
-                    : isPending
-                    ? Icons.hourglass_top
-                    : Icons.close,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            title: Text('Angsuran ke-${angsuran['angsuran_ke']}'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Jatuh Tempo: ${DateFormat('dd MMM yyyy').format(DateTime.parse(angsuran['tanggal_jatuh_tempo']))}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                Text(
-                  'Nominal: ${formatRupiah(angsuran['jumlah_bayar'])}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                if (angsuran['status'] == 'ditolak' && angsuran['alasan_penolakan'] != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(
-                      'Revisi: ${angsuran['alasan_penolakan']}',
-                      style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-              ],
-            ),
-            trailing: isPaid
-                ? const Text(
-                    'LUNAS',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : isPending
-                ? const Text(
-                    'DIPROSES',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : ElevatedButton(
-                    onPressed: () => _konfirmasiBayar(angsuran['id']),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      minimumSize: const Size(60, 30),
-                      backgroundColor: angsuran['status'] == 'ditolak' ? Colors.red : null,
-                    ),
-                    child: Text(angsuran['status'] == 'ditolak' ? 'Perbaiki' : 'Bayar', style: const TextStyle(fontSize: 12)),
-                  ),
-          ),
-        );
-      },
+  Widget _buildHeader() {
+    return SliverToBoxAdapter(
+      child: Container(
+        padding: const EdgeInsets.only(top: 60, bottom: 20, left: 24, right: 24),
+        decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.vertical(bottom: Radius.circular(32))),
+        child: Row(
+          children: [
+            IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20), style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.2))),
+            const SizedBox(width: 16),
+            Text('Detail Pinjaman', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+          ],
+        ),
+      ),
     );
   }
+
+  Widget _buildSummaryCard(Map<String, dynamic> pinjaman) {
+    final status = pinjaman['status'].toString();
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1565C0)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: const Color(0xFF0D47A1).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('TOTAL PINJAMAN', style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.7), letterSpacing: 1.2)),
+                  const SizedBox(height: 4),
+                  Text(formatRupiah(pinjaman['nominal']), style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                ],
+              ),
+              _buildStatusBadge(status),
+            ],
+          ),
+          if (status == 'ditolak' || status == 'perlu_perbaikan') _buildAlertBox(pinjaman),
+          const SizedBox(height: 24),
+          _buildDivider(),
+          const SizedBox(height: 20),
+          _buildInfoRow(Icons.receipt_long_rounded, 'Keperluan', pinjaman['untuk_keperluan'] ?? '-'),
+          _buildInfoRow(Icons.calendar_month_rounded, 'Tenor Pinjaman', '${pinjaman['tenor_cicilan']} Bulan'),
+          _buildInfoRow(Icons.account_balance_rounded, 'Bank Penerima', pinjaman['nama_bank'] ?? '-'),
+          _buildInfoRow(Icons.numbers_rounded, 'Nomor Rekening', pinjaman['no_rekening'] ?? '-'),
+          _buildInfoRow(Icons.wallet_rounded, 'Pendapatan', formatRupiah(pinjaman['pendapatan_per_bulan'])),
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildStatusBadge(String status) {
+    Color color = Colors.white;
+    if (status == 'disetujui' || status == 'lunas') color = Colors.greenAccent;
+    if (status == 'pending' || status == 'proses') color = Colors.orangeAccent;
+    if (status == 'ditolak') color = Colors.redAccent;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.5))),
+      child: Text(status.toUpperCase(), style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.bold, color: color)),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.white.withOpacity(0.6)),
+          const SizedBox(width: 12),
+          Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.white.withOpacity(0.7))),
+          const Spacer(),
+          Text(value, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivider() => Container(height: 1, width: double.infinity, color: Colors.white.withOpacity(0.1));
+
+  Widget _buildInstallmentHeader() {
+    return Row(
+      children: [
+        const Icon(Icons.list_alt_rounded, size: 20, color: Color(0xFF0D47A1)),
+        const SizedBox(width: 8),
+        Text('Jadwal Angsuran', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
+      ],
+    );
+  }
+
+  Widget _buildAngsuranItem(dynamic angsuran) {
+    bool isLunas = angsuran['status'] == 'lunas';
+    bool isPending = angsuran['status'] == 'menunggu_konfirmasi';
+    bool isDitolak = angsuran['status'] == 'ditolak';
+
+    IconData icon = isLunas ? Icons.check_circle_rounded : (isPending ? Icons.pending_rounded : Icons.payment_rounded);
+    Color color = isLunas ? Colors.green : (isPending ? Colors.orange : const Color(0xFF0D47A1));
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
+      child: Row(
+        children: [
+          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)), child: Icon(icon, color: color, size: 20)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Angsuran ke-${angsuran['angsuran_ke']}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: const Color(0xFF2D3436))),
+                Text(formatRupiah(angsuran['jumlah_bayar']), style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+              ],
+            ),
+          ),
+          if (!isLunas && !isPending)
+            ElevatedButton(
+              onPressed: () => _konfirmasiBayar(angsuran['id']),
+              style: ElevatedButton.styleFrom(backgroundColor: isDitolak ? Colors.orange : const Color(0xFF0D47A1), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+              child: Text(isDitolak ? 'Revisi' : 'Bayar', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold)),
+            )
+          else
+            Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), child: Text(isLunas ? 'LUNAS' : 'PROSES', style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: color))),
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0);
+  }
+
+  Widget _buildAlertBox(Map<String, dynamic> pinjaman) {
+    bool isRevision = pinjaman['status'] == 'perlu_perbaikan';
+    Color color = isRevision ? Colors.orangeAccent : Colors.redAccent;
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withOpacity(0.5))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [Icon(Icons.warning_amber_rounded, size: 16, color: color), const SizedBox(width: 8), Text(isRevision ? 'Catatan Perbaikan:' : 'Alasan Penolakan:', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: color))]),
+          const SizedBox(height: 4),
+          Text(pinjaman['alasan_penolakan'] ?? '-', style: GoogleFonts.poppins(fontSize: 11, color: Colors.white.withOpacity(0.9))),
+          if (isRevision) ...[
+            const SizedBox(height: 12),
+            SizedBox(width: double.infinity, height: 40, child: ElevatedButton(onPressed: () async {
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (ctx) => PinjamanFormScreen(pinjaman: pinjaman)));
+              if (result == true) _loadDetail();
+            }, style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0), child: Text('Perbaiki Pengajuan', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)))),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipsBox() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF2196F3).withOpacity(0.1))),
+      child: Row(
+        children: [
+          const Icon(Icons.lightbulb_rounded, color: Color(0xFF1976D2)),
+          const SizedBox(width: 16),
+          Expanded(child: Text('Bayar angsuran tepat waktu untuk meningkatkan limit pinjaman Anda selanjutnya.', style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF1565C0), height: 1.5))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() => Center(child: Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Text('Belum ada jadwal angsuran.', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey))));
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../utils/currency_formatter.dart';
@@ -20,13 +21,11 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
   final ApiService _apiService = ApiService();
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _allData = [];
-  // Stores grouped data
   List<Map<String, dynamic>> _groupedData = [];
   bool _isLoading = true;
-  String _filterStatus = 'Semua'; // Default
+  String _filterStatus = 'Semua';
   bool _isDownloadingPdf = false;
 
-  // Grand Totals
   double _totalPlafonAktif = 0;
   double _totalAngsuranMasuk = 0;
   double _totalSisaHutang = 0;
@@ -40,584 +39,10 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
     _fetchAllData();
   }
 
-  // ... _fetchAllData remains same ...
-
-  void _groupData() {
-    final Map<String, Map<String, dynamic>> groups = {};
-
-    final query = _searchController.text.toLowerCase();
-    final filterStatus = _filterStatus.toLowerCase();
-
-    double tempPlafon = 0;
-    double tempMasuk = 0;
-
-    for (var item in _allData) {
-      final anggota = item['anggota'] ?? {};
-      final userId = (item['user_id'] ?? 'unknown').toString();
-
-      // Filter by Name/ID
-      final nama = (anggota['nama_lengkap'] ?? '').toString().toLowerCase();
-      final noAnggota = (anggota['nomor_anggota'] ?? '')
-          .toString()
-          .toLowerCase();
-      if (query.isNotEmpty &&
-          !nama.contains(query) &&
-          !noAnggota.contains(query)) {
-        continue;
-      }
-
-      // Check Item Status for Filter
-      final itemStatus = (item['status'] ?? '').toString().toLowerCase();
-
-      bool matchesStatus = false;
-      if (filterStatus == 'semua') {
-        matchesStatus = true;
-      } else if (filterStatus == 'pending') {
-        matchesStatus =
-            (itemStatus == 'menunggu_konfirmasi' || itemStatus == 'pending');
-      } else {
-        // Loose match for other statuses
-        if (itemStatus.contains(filterStatus)) matchesStatus = true;
-      }
-
-      if (matchesStatus) {
-        if (!groups.containsKey(userId)) {
-          groups[userId] = {
-            'anggota': anggota,
-            'pinjaman': <dynamic>[],
-            'summary': {'pending': 0, 'disetujui': 0, 'ditolak': 0, 'lunas': 0},
-          };
-        }
-
-        groups[userId]!['pinjaman'].add(item);
-
-        // Update Summary (based on normalized status keys)
-        String summaryKey = itemStatus;
-        if (itemStatus == 'menunggu_konfirmasi') summaryKey = 'pending';
-        if (groups[userId]!['summary'].containsKey(summaryKey)) {
-          groups[userId]!['summary'][summaryKey]++;
-        }
-
-        // Calculate Totals only for Disetujui/Lunas
-        if (itemStatus == 'disetujui' || itemStatus == 'lunas') {
-          double nominal =
-              double.tryParse((item['nominal'] ?? '0').toString()) ?? 0;
-          tempPlafon += nominal;
-
-          // Process Angsurans for 'Kas Masuk'
-          if (item['angsurans'] != null && item['angsurans'] is List) {
-            for (var angs in item['angsurans']) {
-              if (angs['status'] == 'lunas' || angs['status'] == 'disetujui') {
-                tempMasuk +=
-                    double.tryParse(
-                      (angs['jumlah_bayar'] ??
-                              angs['jumlah_angsuran'] ??
-                              angs['nominal_angsuran'] ??
-                              '0')
-                          .toString(),
-                    ) ??
-                    0;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Remove groups with no matching items
-    groups.removeWhere((key, value) => (value['pinjaman'] as List).isEmpty);
-
-    setState(() {
-      _groupedData = groups.values.toList();
-      _totalPlafonAktif = tempPlafon;
-      _totalAngsuranMasuk = tempMasuk;
-      _totalSisaHutang = _totalPlafonAktif - _totalAngsuranMasuk;
-      if (_totalSisaHutang < 0) _totalSisaHutang = 0;
-    });
-  }
-
-  void _filterData() {
-    // Re-run grouping which includes filtering
-    _groupData();
-  }
-
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  Widget _buildSummaryCards() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildMiniCard(
-              'Total Plafon (Aktif)',
-              _totalPlafonAktif,
-              Icons.account_balance_wallet,
-              Colors.blue,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildMiniCard(
-              'Angsuran Masuk',
-              _totalAngsuranMasuk,
-              Icons.trending_down,
-              Colors.green,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildMiniCard(
-              'Sisa Hutang',
-              _totalSisaHutang,
-              Icons.warning_amber_rounded,
-              Colors.orange,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMiniCard(
-    String title,
-    double value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.05),
-            offset: const Offset(0, 4),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            formatRupiah(value),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _exportPdf() async {
-    final result = await showDialog<Map<String, int?>?>(
-      context: context,
-      builder: (ctx) => const PdfExportDialog(title: 'Laporan Pinjaman'),
-    );
-
-    if (result != null) {
-      setState(() => _isDownloadingPdf = true);
-      try {
-        await _apiService.downloadPdf(
-          'export/pinjaman',
-          'Laporan_Pinjaman.pdf',
-          bulan: result['bulan'],
-          tahun: result['tahun'],
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Berhasil membuka PDF'), backgroundColor: Colors.green),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isDownloadingPdf = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Laporan Pinjaman',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        actions: [
-          if (_isDownloadingPdf)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-              tooltip: 'Cetak PDF',
-              onPressed: _exportPdf,
-            ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildFilterHeader(),
-                _buildSummaryCards(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Theme(
-                          data: Theme.of(context).copyWith(
-                            dividerColor: Colors.transparent, // Clean look
-                          ),
-                          child: DataTable(
-                            headingRowColor: WidgetStateProperty.all(
-                              Theme.of(
-                                context,
-                              ).colorScheme.primary.withOpacity(0.1),
-                            ),
-                            border: TableBorder(
-                              horizontalInside: BorderSide(
-                                color: Colors.grey.shade200,
-                                width: 1,
-                              ),
-                            ),
-                            columnSpacing: 20,
-                            columns: [
-                              DataColumn(label: _buildColumnHeader('No')),
-                              DataColumn(
-                                label: _buildColumnHeader('No. Anggota'),
-                              ),
-                              DataColumn(
-                                label: _buildColumnHeader('Nama Lengkap'),
-                              ),
-                              DataColumn(
-                                label: _buildColumnHeader('Status Pinjaman'),
-                              ),
-                              DataColumn(label: _buildColumnHeader('Aksi')),
-                            ],
-                            rows: List<DataRow>.generate(_groupedData.length, (
-                              index,
-                            ) {
-                              final group = _groupedData[index];
-                              final anggota = group['anggota'];
-                              final summary =
-                                  group['summary'] as Map<String, int>;
-
-                              // Determine display status based on what they have
-                              String statusText = '';
-                              if (summary['pending']! > 0)
-                                statusText += '${summary['pending']} Pending ';
-                              if (summary['disetujui']! > 0)
-                                statusText += '${summary['disetujui']} Aktif ';
-                              if (statusText.isEmpty)
-                                statusText = 'Tidak ada aktif';
-
-                              return DataRow(
-                                cells: [
-                                  DataCell(Text('${index + 1}')),
-                                  DataCell(
-                                    Text(anggota['nomor_anggota'] ?? '-'),
-                                  ),
-                                  DataCell(
-                                    Text(anggota['nama_lengkap'] ?? '-'),
-                                  ),
-                                  DataCell(_buildSummaryBadge(summary)),
-                                  DataCell(
-                                    ElevatedButton(
-                                      onPressed: () => _showDetailDialog(group),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                        foregroundColor: Colors.white,
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 5,
-                                        ),
-                                        minimumSize: Size(0, 30),
-                                      ),
-                                      child: const Text(
-                                        'Detail',
-                                        style: TextStyle(fontSize: 12),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildSummaryBadge(Map<String, int> summary) {
-    List<Widget> badges = [];
-    if (summary['pending']! > 0) {
-      badges.add(_miniBadge('Pending: ${summary['pending']}', Colors.orange));
-    }
-    if (summary['disetujui']! > 0) {
-      badges.add(_miniBadge('Aktif: ${summary['disetujui']}', Colors.green));
-    }
-    if (summary['ditolak']! > 0) {
-      badges.add(_miniBadge('Ditolak: ${summary['ditolak']}', Colors.red));
-    }
-    if (summary['lunas']! > 0) {
-      badges.add(_miniBadge('Lunas: ${summary['lunas']}', Colors.blue));
-    }
-
-    if (badges.isEmpty) return Text('-');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: badges
-          .map((b) => Padding(padding: EdgeInsets.only(bottom: 2), child: b))
-          .toList(),
-    );
-  }
-
-  Widget _miniBadge(String text, Color color) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color, width: 0.5),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          color: color,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  void _showDetailDialog(Map<String, dynamic> group) {
-    final anggota = group['anggota'];
-    final pinjamanList = group['pinjaman'] as List<dynamic>;
-
-    // Sort by Date Descending
-    pinjamanList.sort((a, b) {
-      final dateA = DateTime.tryParse(a['created_at']) ?? DateTime(2000);
-      final dateB = DateTime.tryParse(b['created_at']) ?? DateTime(2000);
-      return dateB.compareTo(dateA);
-    });
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Riwayat Pinjaman',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-            ),
-            Text(
-              '${anggota['nama_lengkap']} - ${anggota['nomor_anggota']}',
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: pinjamanList.length,
-            itemBuilder: (ctx, index) {
-              final item = pinjamanList[index];
-              return Card(
-                elevation: 2,
-                margin: EdgeInsets.only(bottom: 10),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            DateFormat('dd MMM yyyy').format(
-                              DateTime.tryParse(item['created_at']) ??
-                                  DateTime.now(),
-                            ),
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                          _buildStatusBadge(item['status']),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            NumberFormat.currency(
-                              locale: 'id_ID',
-                              symbol: 'Rp ',
-                              decimalDigits: 0,
-                            ).format(
-                              double.tryParse(item['nominal'].toString()) ?? 0,
-                            ),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          Text(
-                            '${item['tenor_cicilan']} Bulan',
-                            style: TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      if (item['acc_by_name'] != null || item['acc_by'] != null)
-                        Text(
-                          'Diverifikasi oleh: ${item['acc_by_name'] ?? (item['acc_by'] is Map ? item['acc_by']['name'] : 'ID:${item['acc_by']}') ?? '-'} ${item['acc_by_role'] != null ? '(${item['acc_by_role']})' : ''}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      if (item['angsurans'] != null &&
-                          (item['angsurans'] as List).isNotEmpty) ...[
-                        const Divider(height: 24),
-                        Text(
-                          'Riwayat Angsuran:',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ...((item['angsurans'] as List)..sort(
-                              (a, b) =>
-                                  (int.tryParse(a['angsuran_ke'].toString()) ??
-                                          0)
-                                      .compareTo(
-                                        int.tryParse(
-                                              b['angsuran_ke'].toString(),
-                                            ) ??
-                                            0,
-                                      ),
-                            ))
-                            .map((angs) {
-                              bool isPaid =
-                                  angs['status'] == 'lunas' ||
-                                  angs['status'] == 'disetujui';
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 6.0),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      isPaid
-                                          ? Icons.check_circle
-                                          : Icons.schedule,
-                                      size: 14,
-                                      color: isPaid
-                                          ? Colors.green
-                                          : Colors.orange,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Bulan ${angs['angsuran_ke']}',
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                    ),
-                                    Text(
-                                      formatRupiah(
-                                        double.tryParse(
-                                              (angs['jumlah_bayar'] ??
-                                                      angs['jumlah_angsuran'] ??
-                                                      angs['nominal_angsuran'] ??
-                                                      '0')
-                                                  .toString(),
-                                            ) ??
-                                            0,
-                                      ),
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            })
-                            .toList(),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Tutup')),
-        ],
-      ),
-    );
   }
 
   Future<void> _fetchAllData() async {
@@ -625,7 +50,6 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final role = authProvider.role?.toLowerCase();
-
       List<dynamic> rawData = [];
 
       if (role == 'ketua') {
@@ -645,91 +69,447 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      if (mounted && context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error loading data: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading data: $e')));
       }
     }
   }
 
-  Widget _buildFilterHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          Row(
+  void _groupData() {
+    final Map<String, Map<String, dynamic>> groups = {};
+    final query = _searchController.text.toLowerCase();
+    final filterStatus = _filterStatus.toLowerCase();
+
+    double tempPlafon = 0;
+    double tempMasuk = 0;
+
+    for (var item in _allData) {
+      final anggota = item['anggota'] ?? {};
+      final userId = (item['user_id'] ?? 'unknown').toString();
+
+      final nama = (anggota['nama_lengkap'] ?? '').toString().toLowerCase();
+      final noAnggota = (anggota['nomor_anggota'] ?? '').toString().toLowerCase();
+      if (query.isNotEmpty && !nama.contains(query) && !noAnggota.contains(query)) continue;
+
+      final itemStatus = (item['status'] ?? '').toString().toLowerCase();
+      bool matchesStatus = false;
+      if (filterStatus == 'semua') {
+        matchesStatus = true;
+      } else if (filterStatus == 'pending') {
+        matchesStatus = (itemStatus == 'menunggu_konfirmasi' || itemStatus == 'pending');
+      } else {
+        if (itemStatus.contains(filterStatus)) matchesStatus = true;
+      }
+
+      if (matchesStatus) {
+        if (!groups.containsKey(userId)) {
+          groups[userId] = {
+            'anggota': anggota,
+            'pinjaman': <dynamic>[],
+            'summary': {'pending': 0, 'disetujui': 0, 'ditolak': 0, 'lunas': 0},
+          };
+        }
+
+        groups[userId]!['pinjaman'].add(item);
+        String summaryKey = itemStatus;
+        if (itemStatus == 'menunggu_konfirmasi') summaryKey = 'pending';
+        if (groups[userId]!['summary'].containsKey(summaryKey)) {
+          groups[userId]!['summary'][summaryKey]++;
+        }
+
+        if (itemStatus == 'disetujui' || itemStatus == 'lunas') {
+          double nominal = double.tryParse((item['nominal'] ?? '0').toString()) ?? 0;
+          tempPlafon += nominal;
+          if (item['angsurans'] != null && item['angsurans'] is List) {
+            for (var angs in item['angsurans']) {
+              if (angs['status'] == 'lunas' || angs['status'] == 'disetujui') {
+                tempMasuk += double.tryParse((angs['jumlah_bayar'] ?? angs['jumlah_angsuran'] ?? '0').toString()) ?? 0;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    groups.removeWhere((key, value) => (value['pinjaman'] as List).isEmpty);
+
+    setState(() {
+      _groupedData = groups.values.toList();
+      _totalPlafonAktif = tempPlafon;
+      _totalAngsuranMasuk = tempMasuk;
+      _totalSisaHutang = _totalPlafonAktif - _totalAngsuranMasuk;
+      if (_totalSisaHutang < 0) _totalSisaHutang = 0;
+    });
+  }
+
+  void _filterData() => _groupData();
+
+  Future<void> _exportPdf() async {
+    final result = await showDialog<Map<String, int?>?>(
+      context: context,
+      builder: (ctx) => const PdfExportDialog(title: 'Laporan Pinjaman'),
+    );
+
+    if (result != null) {
+      setState(() => _isDownloadingPdf = true);
+      try {
+        await _apiService.downloadPdf('export/pinjaman', 'Laporan_Pinjaman.pdf', bulan: result['bulan'], tahun: result['tahun']);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil membuka PDF'), backgroundColor: Colors.green));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      } finally {
+        if (mounted) setState(() => _isDownloadingPdf = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF1F5FF),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: () async => _fetchAllData(),
+              child: CustomScrollView(
+                slivers: [
+                  _buildSliverHeader(),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          _buildIntegratedSummary(),
+                          const SizedBox(height: 16),
+                          _buildListHeader(),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+                    ),
+                  ),
+                  _groupedData.isEmpty
+                      ? SliverToBoxAdapter(
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 100),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
+                                  const SizedBox(height: 16),
+                                  Text('Tidak ada data ditemukan', style: GoogleFonts.poppins(color: Colors.grey[500])),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) => _buildMemberCard(_groupedData[index], index),
+                              childCount: _groupedData.length,
+                            ),
+                          ),
+                        ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildSliverHeader() {
+    return SliverAppBar(
+      expandedHeight: 140,
+      pinned: true,
+      backgroundColor: const Color(0xFF0D47A1),
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+          ),
+        ),
+      ),
+      leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20), onPressed: () => Navigator.pop(context)),
+      title: Text('Laporan Pinjaman', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+      actions: [
+        if (_isDownloadingPdf)
+          const Padding(padding: EdgeInsets.all(16.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))
+        else
+          IconButton(icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white), onPressed: _exportPdf),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+          child: Row(
             children: [
               Expanded(
                 flex: 2,
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Cari Anggota',
-                    hintText: 'Nama / No Anggota',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)]),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (val) => _filterData(),
+                    decoration: InputDecoration(
+                      hintText: 'Cari Anggota...',
+                      hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey),
+                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF0D47A1)),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12),
                   ),
-                  onChanged: (val) => _filterData(),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 flex: 1,
-                child: DropdownButtonFormField<String>(
-                  value: _filterStatus,
-                  decoration: InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  items:
-                      [
+                child: Container(
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)]),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _filterStatus,
+                      isExpanded: true,
+                      items: [
                         {'label': 'Semua', 'val': 'Semua'},
                         {'label': 'Pending', 'val': 'pending'},
                         {'label': 'Aktif', 'val': 'disetujui'},
                         {'label': 'Lunas', 'val': 'lunas'},
                         {'label': 'Ditolak', 'val': 'ditolak'},
                       ].map((map) {
-                        return DropdownMenuItem<String>(
-                          value: map['val'],
-                          child: Text(
-                            map['label']!,
-                            style: GoogleFonts.poppins(fontSize: 14),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
+                        return DropdownMenuItem<String>(value: map['val'], child: Text(map['label']!, style: GoogleFonts.poppins(fontSize: 12)));
                       }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _filterStatus = val;
-                        _filterData();
-                      });
-                    }
-                  },
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _filterStatus = val;
+                            _filterData();
+                          });
+                        }
+                      },
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildColumnHeader(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.poppins(
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
+  Widget _buildIntegratedSummary() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('TOTAL PINJAMAN AKTIF', style: GoogleFonts.poppins(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  const SizedBox(height: 4),
+                  Text(formatRupiah(_totalPlafonAktif), style: GoogleFonts.poppins(color: const Color(0xFF0D47A1), fontSize: 24, fontWeight: FontWeight.w900)),
+                ],
+              ),
+              Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle), child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF0D47A1), size: 24)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(height: 1),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: _buildSimpleStat('Angsuran Masuk', _totalAngsuranMasuk, Colors.green)),
+              Container(height: 30, width: 1, color: Colors.grey[200]),
+              Expanded(child: _buildSimpleStat('Sisa Hutang', _totalSisaHutang, Colors.orange)),
+            ],
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2);
+  }
+
+  Widget _buildSimpleStat(String label, double value, Color color) {
+    return Column(
+      children: [
+        Text(formatRupiah(value), style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
+        Text(label, style: GoogleFonts.poppins(fontSize: 9, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _buildListHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text('Daftar Pinjaman Anggota', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
+        Text('${_groupedData.length} Orang', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])),
+      ],
+    ).animate().fadeIn(delay: 200.ms);
+  }
+
+  Widget _buildMemberCard(Map<String, dynamic> group, int index) {
+    final anggota = group['anggota'];
+    final summary = group['summary'] as Map<String, int>;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: InkWell(
+        onTap: () => _showDetailDialog(group),
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color(0xFF0D47A1).withOpacity(0.05), shape: BoxShape.circle),
+                child: const Icon(Icons.person_rounded, color: Color(0xFF0D47A1), size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(anggota['nama_lengkap'] ?? '-', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
+                    Text('NIK: ${anggota['nomor_ktp'] ?? anggota['nomor_anggota'] ?? '-'}', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])),
+                  ],
+                ),
+              ),
+              _buildSummaryBadges(summary),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    ).animate().fadeIn(delay: (index * 50).ms).slideX(begin: 0.1, end: 0);
+  }
+
+  Widget _buildSummaryBadges(Map<String, int> summary) {
+    List<Widget> badges = [];
+    if (summary['pending']! > 0) badges.add(_miniBadge('${summary['pending']}', Colors.orange));
+    if (summary['disetujui']! > 0) badges.add(_miniBadge('${summary['disetujui']}', Colors.green));
+    if (summary['lunas']! > 0) badges.add(_miniBadge('${summary['lunas']}', Colors.blue));
+    return Row(children: badges);
+  }
+
+  Widget _miniBadge(String text, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+      child: Text(text, style: GoogleFonts.poppins(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  void _showDetailDialog(Map<String, dynamic> group) {
+    final anggota = group['anggota'];
+    final pinjamanList = group['pinjaman'] as List<dynamic>;
+
+    pinjamanList.sort((a, b) {
+      final dateA = DateTime.tryParse(a['created_at']) ?? DateTime(2000);
+      final dateB = DateTime.tryParse(b['created_at']) ?? DateTime(2000);
+      return dateB.compareTo(dateA);
+    });
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              width: double.infinity,
+              decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)])),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Riwayat Pinjaman', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text(anggota['nama_lengkap'] ?? '-', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.all(16),
+                itemCount: pinjamanList.length,
+                itemBuilder: (ctx, index) {
+                  final item = pinjamanList[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey[200]!)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(DateFormat('dd MMM yyyy').format(DateTime.tryParse(item['created_at']) ?? DateTime.now()), style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+                            _buildStatusBadge(item['status']),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(formatRupiah(double.tryParse(item['nominal'].toString()) ?? 0), style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: const Color(0xFF0D47A1))),
+                            Text('${item['tenor_cicilan']} Bulan', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        if (item['angsurans'] != null && (item['angsurans'] as List).isNotEmpty) ...[
+                          const Divider(height: 24),
+                          Text('Angsuran Terbayar:', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey[700])),
+                          const SizedBox(height: 8),
+                          ...((item['angsurans'] as List)..sort((a, b) => (int.tryParse(a['angsuran_ke'].toString()) ?? 0).compareTo(int.tryParse(b['angsuran_ke'].toString()) ?? 0))).where((a) => a['status'] == 'lunas' || a['status'] == 'disetujui').map((angs) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, size: 14, color: Colors.green),
+                                    const SizedBox(width: 8),
+                                    Text('Bulan ${angs['angsuran_ke']}', style: GoogleFonts.poppins(fontSize: 11)),
+                                    const Spacer(),
+                                    Text(formatRupiah(double.tryParse((angs['jumlah_bayar'] ?? angs['jumlah_angsuran'] ?? '0').toString()) ?? 0), style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              )),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(padding: const EdgeInsets.all(16), child: SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Navigator.pop(ctx), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D47A1), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(vertical: 14)), child: Text('Tutup', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold))))),
+          ],
+        ),
       ),
     );
   }
@@ -753,19 +533,8 @@ class _LaporanPinjamanScreenState extends State<LaporanPinjamanScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color),
-      ),
-      child: Text(
-        (status ?? '-').toUpperCase(),
-        style: GoogleFonts.poppins(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: color)),
+      child: Text((status ?? '-').toUpperCase(), style: GoogleFonts.poppins(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
     );
   }
 }

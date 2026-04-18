@@ -67,99 +67,127 @@ class _CarouselChartWidgetState extends State<CarouselChartWidget> {
   }
 
   // 1. Portfolio Chart (Pie) - Existing Logic
-  Widget _buildCard(String title, Widget chart, List<Widget> legend) {
+  // --- Chart Card Wrapper ---
+  Widget _buildCard(String title, Widget chart, List<Widget> legend, {String? subtitle}) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFF0D47A1).withOpacity(0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            spreadRadius: 2,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF0D47A1).withOpacity(0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2D3436),
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                ],
+              ),
+              const Icon(Icons.analytics_outlined, color: Colors.grey, size: 20),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Expanded(child: chart),
           const SizedBox(height: 16),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: legend),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 16,
+            runSpacing: 8,
+            children: legend,
+          ),
         ],
       ),
     );
   }
 
+  // 1. Portfolio Chart (Donut)
   Widget _buildPortfolioChart() {
-    final double totalSimpanan =
-        double.tryParse(widget.data['total_simpanan'].toString()) ?? 0.0;
-    final double totalPinjaman =
-        double.tryParse(widget.data['total_pinjaman_aktif'].toString()) ?? 0.0;
+    final double totalSimpanan = double.tryParse(widget.data['total_simpanan'].toString()) ?? 0.0;
+    final double totalPinjaman = double.tryParse(widget.data['total_pinjaman_aktif'].toString()) ?? 0.0;
     final double total = totalSimpanan + totalPinjaman;
 
     if (total == 0) {
-      return _buildCard(
-        'Portfolio Aset',
-        Center(child: Text('Belum ada data')),
-        [],
-      );
+      return _buildCard('Portfolio Aset', const Center(child: Text('Belum ada data')), []);
     }
 
     return _buildCard(
-      'Komposisi Aset (Simpanan vs Pinjaman)',
-      PieChart(
-        PieChartData(
-          sectionsSpace: 5,
-          centerSpaceRadius: 40,
-          sections: [
-            PieChartSectionData(
-              color: const Color(0xFF6A11CB),
-              value: totalSimpanan,
-              title: '${(totalSimpanan / total * 100).toStringAsFixed(0)}%',
-              radius: 50,
-              titleStyle: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontSize: 12,
-              ),
+      'Komposisi Dana',
+      subtitle: 'Distribusi Simpanan & Pinjaman',
+      Stack(
+        children: [
+          PieChart(
+            PieChartData(
+              sectionsSpace: 4,
+              centerSpaceRadius: 50,
+              sections: [
+                PieChartSectionData(
+                  color: const Color(0xFF0D47A1),
+                  value: totalSimpanan,
+                  title: '${(totalSimpanan / total * 100).toStringAsFixed(0)}%',
+                  radius: 20,
+                  titleStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 10),
+                ),
+                PieChartSectionData(
+                  color: const Color(0xFFE67E22),
+                  value: totalPinjaman,
+                  title: '${(totalPinjaman / total * 100).toStringAsFixed(0)}%',
+                  radius: 20,
+                  titleStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 10),
+                ),
+              ],
             ),
-            PieChartSectionData(
-              color: const Color(0xFFFF512F),
-              value: totalPinjaman,
-              title: '${(totalPinjaman / total * 100).toStringAsFixed(0)}%',
-              radius: 50,
-              titleStyle: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontSize: 12,
-              ),
+          ),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('TOTAL', style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                Text(
+                  NumberFormat.compactCurrency(locale: 'id', symbol: '').format(total),
+                  style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w900, color: const Color(0xFF0D47A1)),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       [
-        _buildLegend(const Color(0xFF6A11CB), 'Simpanan'),
-        const SizedBox(width: 16),
-        _buildLegend(const Color(0xFFFF512F), 'Pinjaman'),
+        _buildLegend(const Color(0xFF0D47A1), 'Simpanan'),
+        _buildLegend(const Color(0xFFE67E22), 'Pinjaman'),
       ],
     );
   }
 
-  // 2. Trend Chart (Line) - Simulated/Aggregated
+  // 2. Trend Chart (Premium Line)
   Widget _buildTrendChart() {
-    // Aggregate data per month for the last 6 months
     final now = DateTime.now();
     final List<FlSpot> spots = [];
     double maxY = 0;
@@ -168,33 +196,25 @@ class _CarouselChartWidgetState extends State<CarouselChartWidget> {
       DateTime month = DateTime(now.year, now.month - i, 1);
       DateTime nextMonth = DateTime(now.year, now.month - i + 1, 1);
 
-      // Calculate total transaction volume in this month
-      // Simpanan
       double simpananMonth = 0;
       for (var s in widget.simpananList) {
-        DateTime? date = DateTime.tryParse(
-          s['tanggal'] ?? s['created_at'] ?? '',
-        );
+        DateTime? date = DateTime.tryParse(s['tanggal'] ?? s['created_at'] ?? '');
         if (date != null && date.isAfter(month) && date.isBefore(nextMonth)) {
-          double amount =
-              double.tryParse((s['nominal'] ?? '0').toString()) ?? 0;
-          if ((s['tipe'] ?? '').toLowerCase() == 'kredit')
-            simpananMonth += amount;
+          double amount = double.tryParse((s['nominal'] ?? '0').toString()) ?? 0;
+          if ((s['tipe'] ?? '').toLowerCase() == 'kredit') simpananMonth += amount;
         }
       }
 
-      // Pinjaman (as Outflow or Asset Growth? Let's use Asset Growth (Disbursed Loans))
       double pinjamanMonth = 0;
       for (var p in widget.pinjamanList) {
         DateTime? date = DateTime.tryParse(p['created_at'] ?? '');
         if (date != null && date.isAfter(month) && date.isBefore(nextMonth)) {
-          double amount =
-              double.tryParse((p['nominal'] ?? '0').toString()) ?? 0;
+          double amount = double.tryParse((p['nominal'] ?? '0').toString()) ?? 0;
           pinjamanMonth += amount;
         }
       }
 
-      double totalMonth = simpananMonth + pinjamanMonth; // Activity Volume
+      double totalMonth = simpananMonth + pinjamanMonth;
       spots.add(FlSpot((5 - i).toDouble(), totalMonth));
       if (totalMonth > maxY) maxY = totalMonth;
     }
@@ -202,34 +222,30 @@ class _CarouselChartWidgetState extends State<CarouselChartWidget> {
     if (maxY == 0) maxY = 100;
 
     return _buildCard(
-      'Tren Aktivitas Keuangan (6 Bulan)',
+      'Tren Aktivitas',
+      subtitle: 'Volume Transaksi 6 Bulan Terakhir',
       LineChart(
         LineChartData(
-          gridData: const FlGridData(show: false),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: maxY / 4,
+            getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.withOpacity(0.1), strokeWidth: 1, dashArray: [5, 5]),
+          ),
           titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
+            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
                   int index = value.toInt();
                   if (index >= 0 && index <= 5) {
-                    DateTime month = DateTime(
-                      now.year,
-                      now.month - (5 - index),
-                      1,
-                    );
-                    return Text(
-                      DateFormat('MMM').format(month),
-                      style: const TextStyle(fontSize: 10),
+                    DateTime month = DateTime(now.year, now.month - (5 - index), 1);
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 10.0),
+                      child: Text(DateFormat('MMM').format(month), style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.w500)),
                     );
                   }
                   return const Text('');
@@ -242,23 +258,44 @@ class _CarouselChartWidgetState extends State<CarouselChartWidget> {
             LineChartBarData(
               spots: spots,
               isCurved: true,
-              color: Colors.blueAccent,
-              barWidth: 3,
+              curveSmoothness: 0.35,
+              color: const Color(0xFF0D47A1),
+              barWidth: 4,
               isStrokeCapRound: true,
-              dotData: const FlDotData(show: true),
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(radius: 4, color: Colors.white, strokeWidth: 2, strokeColor: const Color(0xFF0D47A1)),
+              ),
               belowBarData: BarAreaData(
                 show: true,
-                color: Colors.blueAccent.withOpacity(0.1),
+                gradient: LinearGradient(
+                  colors: [const Color(0xFF0D47A1).withOpacity(0.15), const Color(0xFF0D47A1).withOpacity(0.0)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
               ),
             ),
           ],
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => const Color(0xFF0D47A1),
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  return LineTooltipItem(
+                    NumberFormat.compactCurrency(locale: 'id', symbol: 'Rp ').format(spot.y),
+                    GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  );
+                }).toList();
+              },
+            ),
+          ),
         ),
       ),
-      [_buildLegend(Colors.blueAccent, 'Volume Transaksi')],
+      [_buildLegend(const Color(0xFF0D47A1), 'Total Volume')],
     );
   }
 
-  // 3. Growth Chart (Bar) - Member Growth
+  // 3. Growth Chart (Premium Bar)
   Widget _buildGrowthChart() {
     final now = DateTime.now();
     final List<BarChartGroupData> barGroups = [];
@@ -281,13 +318,13 @@ class _CarouselChartWidgetState extends State<CarouselChartWidget> {
           barRods: [
             BarChartRodData(
               toY: newMembers.toDouble(),
-              color: Colors.teal,
-              width: 16,
-              borderRadius: BorderRadius.circular(4),
+              gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF81C784)], begin: Alignment.bottomCenter, end: Alignment.topCenter),
+              width: 20,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
               backDrawRodData: BackgroundBarChartRodData(
                 show: true,
                 toY: maxY == 0 ? 5 : maxY + 2,
-                color: Colors.teal.withOpacity(0.05),
+                color: const Color(0xFFF1F5FF),
               ),
             ),
           ],
@@ -296,37 +333,25 @@ class _CarouselChartWidgetState extends State<CarouselChartWidget> {
     }
 
     return _buildCard(
-      'Pertumbuhan Anggota (6 Bulan)',
+      'Pertumbuhan',
+      subtitle: 'Anggota Baru 6 Bulan Terakhir',
       BarChart(
         BarChartData(
           gridData: const FlGridData(show: false),
           titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
+            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
                   int index = value.toInt();
                   if (index >= 0 && index <= 5) {
-                    DateTime month = DateTime(
-                      now.year,
-                      now.month - (5 - index),
-                      1,
-                    );
+                    DateTime month = DateTime(now.year, now.month - (5 - index), 1);
                     return Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        DateFormat('MMM').format(month),
-                        style: const TextStyle(fontSize: 10),
-                      ),
+                      padding: const EdgeInsets.only(top: 10.0),
+                      child: Text(DateFormat('MMM').format(month), style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.w500)),
                     );
                   }
                   return const Text('');
@@ -337,24 +362,36 @@ class _CarouselChartWidgetState extends State<CarouselChartWidget> {
           borderData: FlBorderData(show: false),
           barGroups: barGroups,
           maxY: maxY == 0 ? 5 : maxY + 2,
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (_) => const Color(0xFF2E7D32),
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  '${rod.toY.toInt()} Anggota',
+                  GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                );
+              },
+            ),
+          ),
         ),
       ),
-      [_buildLegend(Colors.teal, 'Anggota Baru')],
+      [_buildLegend(const Color(0xFF2E7D32), 'Anggota Baru')],
     );
   }
 
   Widget _buildLegend(Color color, String text) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
         ),
         const SizedBox(width: 8),
         Text(
           text,
-          style: GoogleFonts.poppins(color: Colors.grey[700], fontSize: 12),
+          style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w500),
         ),
       ],
     );

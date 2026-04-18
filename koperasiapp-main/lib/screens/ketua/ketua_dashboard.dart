@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../utils/currency_formatter.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../../utils/currency_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
-
-import '../../widgets/header_widget.dart';
 import '../../widgets/carousel_chart_widget.dart';
-
 import '../karyawan/anggota_list_screen.dart';
 import 'laporan_pinjaman_screen.dart';
 import 'laporan_simpanan_screen.dart';
@@ -24,11 +22,13 @@ class KetuaDashboard extends StatefulWidget {
 class _KetuaDashboardState extends State<KetuaDashboard> {
   final ApiService _apiService = ApiService();
   late Future<Map<String, dynamic>> _reportsFuture;
+  String _userName = 'Ketua';
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _fetchUserName();
   }
 
   void _loadData() {
@@ -37,16 +37,24 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
     });
   }
 
+  Future<void> _fetchUserName() async {
+    try {
+      final profile = await _apiService.getMyProfile();
+      if (mounted) {
+        setState(() {
+          _userName = profile['nama_lengkap'] ?? 'Ketua';
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<Map<String, dynamic>> _fetchDashboardData() async {
     try {
       final reports = await _apiService.getKetuaReports();
-
       final pinjamanList = await _apiService.getPinjamanKetua();
       final simpananList = await _apiService.getSimpananKetua();
-      final anggotaList = await _apiService.getAnggota(); // Needed for count
+      final anggotaList = await _apiService.getAnggota();
 
-      // Hitung angsuran aktif (status != 'lunas')
-      // Calculate Pending Counts
       final pendingPinjaman = pinjamanList.where((i) {
         final status = (i['status'] ?? '').toString().toLowerCase();
         return status == 'menunggu_konfirmasi' || status == 'pending';
@@ -57,18 +65,12 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
         return status == 'menunggu_konfirmasi' || status == 'pending';
       }).length;
 
-      // --- CORRECT ASSET CALCULATION (SIMPANAN WAJIB + SHU) ---
-      // User Request: Total Aset = Simpanan Wajib + Keuntungan Bunga (SHU).
-
-      // Part 1: Simpanan Wajib
       double totalSimpananWajib = 0;
       for (var s in simpananList) {
         if ((s['status'] ?? '').toString().toLowerCase() == 'disetujui') {
-          // Check for 'Wajib' in jenis_transaksi
           final jenis = (s['jenis_transaksi'] ?? '').toString().toLowerCase();
           if (jenis.contains('wajib')) {
-            double amount =
-                double.tryParse((s['nominal'] ?? '0').toString()) ?? 0;
+            double amount = double.tryParse((s['nominal'] ?? '0').toString()) ?? 0;
             if ((s['tipe'] ?? '').toString().toLowerCase() == 'kredit') {
               totalSimpananWajib += amount;
             } else {
@@ -78,95 +80,46 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
         }
       }
 
-      // Part 2: SHU (Interest Revenue)
-      // Formula: Sum of ((MonthlyPayment * Duration) - Principal) for all approved/paid loans.
       double totalInterestAssets = 0;
       for (var p in pinjamanList) {
         final status = (p['status'] ?? '').toString().toLowerCase();
-        if (status == 'disetujui' ||
-            status == 'verified' ||
-            status == 'lunas') {
-          double nominal =
-              double.tryParse(
-                (p['jumlah_pinjaman'] ?? p['jumlah'] ?? p['nominal'] ?? '0')
-                    .toString(),
-              ) ??
-              0;
-          double angsuranPerBulan =
-              double.tryParse(
-                (p['jumlah_bayar'] ??
-                        p['jumlah_angsuran'] ??
-                        p['nominal_angsuran'] ??
-                        '0')
-                    .toString(),
-              ) ??
-              0;
-          int lamaAngsuran =
-              int.tryParse((p['lama_angsuran'] ?? '0').toString()) ?? 0;
-
+        if (status == 'disetujui' || status == 'verified' || status == 'lunas') {
+          double nominal = double.tryParse((p['jumlah_pinjaman'] ?? p['jumlah'] ?? p['nominal'] ?? '0').toString()) ?? 0;
+          double angsuranPerBulan = double.tryParse((p['jumlah_bayar'] ?? p['jumlah_angsuran'] ?? p['nominal_angsuran'] ?? '0').toString()) ?? 0;
+          int lamaAngsuran = int.tryParse((p['lama_angsuran'] ?? '0').toString()) ?? 0;
           if (lamaAngsuran > 0 && angsuranPerBulan > 0) {
             double totalBayar = angsuranPerBulan * lamaAngsuran;
             double bunga = totalBayar - nominal;
-            if (bunga > 0) {
-              totalInterestAssets += bunga;
-            }
+            if (bunga > 0) totalInterestAssets += bunga;
           }
         }
       }
 
-      // Total Asset
       double totalAssets = totalSimpananWajib + totalInterestAssets;
       if (totalAssets < 0) totalAssets = 0;
 
-      // --- KAS MASUK (SIMPANAN SUKARELA) ---
-      // User Request: Kas Masuk diambil dari Simpanan Sukarela.
       double totalKasMasuk = 0;
       for (var s in simpananList) {
         if ((s['status'] ?? '').toString().toLowerCase() == 'disetujui') {
-          // Check for 'Sukarela'
           final jenis = (s['jenis_transaksi'] ?? '').toString().toLowerCase();
           if (jenis.contains('sukarela')) {
-            double amount =
-                double.tryParse((s['nominal'] ?? '0').toString()) ?? 0;
-            if ((s['tipe'] ?? '').toString().toLowerCase() == 'kredit') {
-              totalKasMasuk += amount;
-            }
-            // NOTE: 'Kas Masuk' usually implies Inflow only. If we want Net Flow, subtract debit.
-            // User said "Kas Masuk... diambil dari simpanan sukarela".
-            // Typically "Kas Masuk" = Income/Debit(in accounting terms for Cash).
-            // Simpanan 'Kredit' in our DB context usually means User Deposit (Money In to Coop).
-            // Simpanan 'Debet' means User Withdraw (Money Out from Coop).
-            // So Kas Masuk = Sum of 'Kredit' transactions of Sukarela.
+            double amount = double.tryParse((s['nominal'] ?? '0').toString()) ?? 0;
+            if ((s['tipe'] ?? '').toString().toLowerCase() == 'kredit') totalKasMasuk += amount;
           }
         }
       }
 
-      // --- PINJAMAN BERJALAN (TOTAL NOMINAL RP) ---
-      // User Request: Total pinjaman aktif tapi dalam bentuk rupiah.
       double totalNominalPinjamanAktif = 0;
       int activeLoanCount = 0;
-
       for (var p in pinjamanList) {
         final status = (p['status'] ?? '').toString().toLowerCase();
-        if (status == 'disetujui' ||
-            status == 'verified' ||
-            status == 'aktif' ||
-            status == 'berjalan') {
-          // Only active
-          double nominal =
-              double.tryParse(
-                (p['jumlah_pinjaman'] ?? p['jumlah'] ?? p['nominal'] ?? '0')
-                    .toString(),
-              ) ??
-              0;
+        if (status == 'disetujui' || status == 'verified' || status == 'aktif' || status == 'berjalan') {
+          double nominal = double.tryParse((p['jumlah_pinjaman'] ?? p['jumlah'] ?? p['nominal'] ?? '0').toString()) ?? 0;
           totalNominalPinjamanAktif += nominal;
           activeLoanCount++;
         }
       }
 
-      // Additional requested logic mostly done.
-
-      // Gabungkan data
       final Map<String, dynamic> mergedData = Map.from(reports);
       mergedData['total_angsuran_aktif_val'] = totalNominalPinjamanAktif;
       mergedData['total_angsuran_aktif_count'] = activeLoanCount;
@@ -174,11 +127,10 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
       mergedData['pending_simpanan'] = pendingSimpanan;
       mergedData['estimated_assets'] = totalAssets;
       mergedData['kas_masuk_sukarela'] = totalKasMasuk;
-      mergedData['total_anggota'] = anggotaList
-          .where((a) => a['is_ktp_verified'] == 1)
-          .length;
-
-      // Pass lists for charts
+      mergedData['total_anggota'] = anggotaList.where((a) {
+        final val = a['is_ktp_verified'];
+        return val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
+      }).length;
       mergedData['simpanan_list'] = simpananList;
       mergedData['pinjaman_list'] = pinjamanList;
       mergedData['anggota_list'] = anggotaList;
@@ -191,66 +143,203 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // ... [No changes to app bar or drawer] ...
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'Dashboard Ketua',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-      ),
+      backgroundColor: const Color(0xFFF1F5FF),
       drawer: _buildDrawer(),
-      body: RefreshIndicator(
-        onRefresh: () async => _loadData(),
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: _reportsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(child: Text('Gagal: ${snapshot.error}'));
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: Text('Tidak ada data.'));
-            }
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _reportsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return Center(child: Text('Gagal: ${snapshot.error}'));
+          if (!snapshot.hasData) return const Center(child: Text('Tidak ada data.'));
 
-            final data = snapshot.data!;
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+          final data = snapshot.data!;
+          return RefreshIndicator(
+            onRefresh: () async => _loadData(),
+            child: CustomScrollView(
+              slivers: [
+                _buildDynamicHeader(),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 60), // Reduced spacing for integrated card overlap
+                        _buildSectionHeader('Butuh Persetujuan'),
+                        const SizedBox(height: 12),
+                        _buildPendingTiles(data),
+                        const SizedBox(height: 16),
+                        _buildSectionHeader('Tren Keuangan'),
+                        const SizedBox(height: 12),
+                        CarouselChartWidget(
+                          data: data,
+                          simpananList: (data['simpanan_list'] as List?) ?? [],
+                          pinjamanList: (data['pinjaman_list'] as List?) ?? [],
+                          anggotaList: (data['anggota_list'] as List?) ?? [],
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDynamicHeader() {
+    return SliverToBoxAdapter(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            height: 320,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const HeaderWidget(),
-                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Builder(
+                        builder: (context) => IconButton(
+                          icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                          onPressed: () => Scaffold.of(context).openDrawer(),
+                          style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.2)),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Provider.of<AuthProvider>(context, listen: false).logout(),
+                        icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                        style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.2)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text('Halo, Ketua!', style: GoogleFonts.poppins(color: Colors.white.withOpacity(0.8), fontSize: 14)),
+                  Text(_userName, style: GoogleFonts.poppins(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -60,
+            left: 20,
+            right: 20,
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: _reportsFuture,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox.shrink();
+                return _buildIntegratedOverviewCard(snapshot.data!);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                  // Top Stats Cards
-                  _buildGradientStatsGrid(data),
-
-                  const SizedBox(height: 24),
-
-                  // "Butuh Persetujuan" Section
-                  _buildPendingSection(data),
-
-                  const SizedBox(height: 24),
-
-                  // Financial Chart
-                  // Carousel Chart Widget
-                  CarouselChartWidget(
-                    data: data,
-                    simpananList: (data['simpanan_list'] as List?) ?? [],
-                    pinjamanList: (data['pinjaman_list'] as List?) ?? [],
-                    anggotaList: (data['anggota_list'] as List?) ?? [],
+  Widget _buildIntegratedOverviewCard(Map<String, dynamic> data) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('TOTAL ESTIMASI ASET', style: GoogleFonts.poppins(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(formatRupiah(data['estimated_assets'] ?? 0), style: GoogleFonts.poppins(color: const Color(0xFF0D47A1), fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                    ],
                   ),
                 ],
               ),
-            );
-          },
+              Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFFF1F5FF), borderRadius: BorderRadius.circular(16)), child: const Icon(Icons.account_balance_rounded, color: Color(0xFF0D47A1), size: 28)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(height: 1),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildSimpleStatItem('Anggota', data['total_anggota']?.toString() ?? '0', Icons.people_outline, Colors.purple),
+              _buildDivider(),
+              _buildSimpleStatItem('Pinjaman', formatRupiah(data['total_angsuran_aktif_val'] ?? 0).replaceFirst('Rp ', ''), Icons.trending_up, Colors.green),
+              _buildDivider(),
+              _buildSimpleStatItem('Kas Masuk', formatRupiah(data['kas_masuk_sukarela'] ?? 0).replaceFirst('Rp ', ''), Icons.savings_outlined, Colors.orange),
+            ],
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.2);
+  }
+
+  Widget _buildSimpleStatItem(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color.withOpacity(0.7), size: 18),
+        const SizedBox(height: 4),
+        Text(value, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
+        Text(label, style: GoogleFonts.poppins(fontSize: 9, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(height: 30, width: 1, color: Colors.grey[200]);
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(title, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))).animate().fadeIn();
+  }
+
+  Widget _buildPendingTiles(Map<String, dynamic> data) {
+    return Row(
+      children: [
+        Expanded(child: _buildActionTile('Pinjaman', data['pending_pinjaman'] ?? 0, Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (c) => const LaporanPinjamanScreen(initialFilterStatus: 'pending'))))),
+        const SizedBox(width: 12),
+        Expanded(child: _buildActionTile('Simpanan', data['pending_simpanan'] ?? 0, Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (c) => const LaporanSimpananScreen(initialFilterStatus: 'pending'))))),
+      ],
+    ).animate().fadeIn(delay: 400.ms).slideX();
+  }
+
+  Widget _buildActionTile(String label, int count, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.2))),
+        child: Row(
+          children: [
+            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)), child: Text('$count', style: GoogleFonts.poppins(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
+            const SizedBox(width: 12),
+            Expanded(child: Text(label, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF2D3436)))),
+            Icon(Icons.chevron_right_rounded, size: 18, color: Colors.grey[400]),
+          ],
         ),
       ),
     );
@@ -258,379 +347,78 @@ class _KetuaDashboardState extends State<KetuaDashboard> {
 
   Widget _buildDrawer() {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.horizontal(right: Radius.circular(24))),
+      child: Column(
         children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          Container(
+            padding: const EdgeInsets.only(top: 60, bottom: 30, left: 24, right: 24),
+            width: double.infinity,
+            decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const Icon(
-                  Icons.admin_panel_settings,
-                  color: Colors.white,
-                  size: 48,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Menu Ketua',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                const CircleAvatar(radius: 35, backgroundColor: Colors.white24, child: Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 35)),
+                const SizedBox(height: 16),
+                Text('Menu Ketua', style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                Text('Sistem Manajemen Koperasi', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
               ],
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.dashboard_outlined),
-            title: const Text('Dashboard'),
-            onTap: () {
-              Navigator.pop(context);
-            },
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                _buildDrawerItem(Icons.dashboard_rounded, 'Dashboard', () => Navigator.pop(context), isActive: true),
+                _buildDrawerItem(Icons.people_alt_rounded, 'Daftar Anggota', () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (c) => AnggotaListScreen()));
+                }),
+                _buildDrawerItem(Icons.monetization_on_rounded, 'Laporan Pinjaman', () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (c) => const LaporanPinjamanScreen()));
+                }),
+                _buildDrawerItem(Icons.account_balance_wallet_rounded, 'Laporan Simpanan', () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (c) => const LaporanSimpananScreen()));
+                }),
+                _buildDrawerItem(Icons.calendar_today_rounded, 'Laporan Angsuran', () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (c) => const LaporanAngsuranScreen()));
+                }),
+                const Divider(indent: 24, endIndent: 24, height: 32),
+                _buildDrawerItem(Icons.percent_rounded, 'Pengaturan Bunga', () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (c) => const BungaSettingListScreen()));
+                }),
+              ],
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.people_outline),
-            title: const Text('Daftar Anggota'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (c) => AnggotaListScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.monetization_on_outlined),
-            title: const Text('Laporan Pinjaman'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (c) => const LaporanPinjamanScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.account_balance_wallet_outlined),
-            title: const Text('Laporan Simpanan'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (c) => const LaporanSimpananScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.calendar_today_outlined),
-            title: const Text('Laporan Angsuran'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (c) => const LaporanAngsuranScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.percent, color: Colors.green),
-            title: const Text('Pengaturan Bunga'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (c) => const BungaSettingListScreen(),
-                ),
-              );
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Logout', style: TextStyle(color: Colors.red)),
-            onTap: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-            },
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: ListTile(
+              onTap: () => Provider.of<AuthProvider>(context, listen: false).logout(),
+              leading: const Icon(Icons.logout_rounded, color: Colors.red),
+              title: Text('Logout', style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.w600)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              tileColor: Colors.red.withOpacity(0.05),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildGradientStatsGrid(Map<String, dynamic> data) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildGradientCard(
-                'Total Aset',
-                data['estimated_assets'] ?? 0,
-                Icons.account_balance_wallet,
-                [const Color(0xFF0D47A1), const Color(0xFF1976D2)],
-                isCurrency: true,
-                onTap: () {
-                  // Total Kas/Aset is closely related to Simpanan
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => const LaporanSimpananScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildGradientCard(
-                'Anggota Aktif',
-                data['total_anggota'] ?? 0,
-                Icons.people_alt,
-                [const Color(0xFF4A148C), const Color(0xFF7B1FA2)],
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => const AnggotaListScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildGradientCard(
-                'Pinjaman Berjalan', // Label remains, value changes to Rp
-                data['total_angsuran_aktif_val'] ?? 0,
-                Icons.trending_up,
-                [const Color(0xFF1B5E20), const Color(0xFF2E7D32)],
-                isCurrency: true,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => const LaporanPinjamanScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildGradientCard(
-                'Kas Masuk (Sukarela)',
-                data['kas_masuk_sukarela'] ?? 0,
-                Icons.savings,
-                [const Color(0xFFE65100), const Color(0xFFF57C00)],
-                isCurrency: true,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => const LaporanSimpananScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGradientCard(
-    String title,
-    dynamic value,
-    IconData icon,
-    List<Color> colors, {
-    bool isCurrency = false,
-    VoidCallback? onTap,
-  }) {
-    String displayValue = value.toString();
-    if (isCurrency && value is num) {
-      displayValue = formatRupiah(value);
-    }
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: colors,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: colors[0].withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: Colors.white.withOpacity(0.8), size: 28),
-                Container(
-                  padding: EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.arrow_forward,
-                    color: Colors.white,
-                    size: 12,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                displayValue,
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPendingSection(Map<String, dynamic> data) {
-    int pendingPinjaman = data['pending_pinjaman'] ?? 0;
-    int pendingSimpanan = data['pending_simpanan'] ?? 0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Butuh Persetujuan',
-          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionCard(
-                'Pinjaman',
-                pendingPinjaman,
-                Colors.orange,
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => const LaporanPinjamanScreen(
-                        initialFilterStatus: 'pending',
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                'Simpanan',
-                pendingSimpanan,
-                Colors.blue,
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => const LaporanSimpananScreen(
-                        initialFilterStatus: 'pending',
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionCard(
-    String label,
-    int count,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                '$count',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-              ),
-            ),
-            Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-          ],
-        ),
+  Widget _buildDrawerItem(IconData icon, String label, VoidCallback onTap, {bool isActive = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: isActive ? const Color(0xFF0D47A1) : Colors.grey[600], size: 22),
+        title: Text(label, style: GoogleFonts.poppins(fontSize: 14, fontWeight: isActive ? FontWeight.bold : FontWeight.w500, color: isActive ? const Color(0xFF0D47A1) : const Color(0xFF2D3436))),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        selected: isActive,
+        selectedTileColor: const Color(0xFF0D47A1).withOpacity(0.08),
       ),
     );
   }
