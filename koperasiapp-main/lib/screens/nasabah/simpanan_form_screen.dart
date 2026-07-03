@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
@@ -65,7 +66,8 @@ class _SimpananFormScreenState extends State<SimpananFormScreen> {
       setState(() => _isLoading = true);
       try {
         final bytes = await _buktiFile!.readAsBytes();
-        await _apiService.ajukanSimpanan({'nominal': _nominalController.text, 'jenis_transaksi': _jenisTransaksiValue!, 'tanggal': _tanggalController.text}, bytes, _buktiFile!.name);
+        final nominalClean = _nominalController.text.replaceAll('.', '');
+        await _apiService.ajukanSimpanan({'nominal': nominalClean, 'jenis_transaksi': _jenisTransaksiValue!, 'tanggal': _tanggalController.text}, bytes, _buktiFile!.name);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Setoran berhasil diajukan!'), backgroundColor: Colors.green));
           Navigator.of(context).pop(true);
@@ -100,7 +102,14 @@ class _SimpananFormScreenState extends State<SimpananFormScreen> {
                     _buildFormHeader('Data Setoran'),
                     const SizedBox(height: 16),
                     _buildLabel('Nominal Setoran (Rp)'),
-                    _buildField(controller: _nominalController, hint: 'Rp 0', icon: Icons.payments_rounded, keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Wajib diisi' : null),
+                    _buildField(
+                      controller: _nominalController,
+                      hint: 'Rp 0',
+                      icon: Icons.payments_rounded,
+                      keyboardType: TextInputType.number,
+                      formatters: [ThousandsFormatter()],
+                      validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+                    ),
                     const SizedBox(height: 20),
                     _buildLabel('Jenis Setoran'),
                     _buildDropdown(),
@@ -173,12 +182,22 @@ class _SimpananFormScreenState extends State<SimpananFormScreen> {
     return Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(label, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[700])));
   }
 
-  Widget _buildField({required TextEditingController controller, required String hint, required IconData icon, bool readOnly = false, VoidCallback? onTap, TextInputType? keyboardType, String? Function(String?)? validator}) {
+  Widget _buildField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? formatters,
+    String? Function(String?)? validator,
+  }) {
     return TextFormField(
       controller: controller,
       readOnly: readOnly,
       onTap: onTap,
       keyboardType: keyboardType,
+      inputFormatters: formatters,
       validator: validator,
       style: GoogleFonts.poppins(fontSize: 14),
       decoration: InputDecoration(hintText: hint, prefixIcon: Icon(icon, size: 20, color: const Color(0xFF0D47A1)), filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.all(18), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 1))),

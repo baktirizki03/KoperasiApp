@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
+import '../../utils/currency_formatter.dart';
 
 class PinjamanFormScreen extends StatefulWidget {
   final Map<String, dynamic>? pinjaman;
@@ -67,12 +69,19 @@ class _PinjamanFormScreenState extends State<PinjamanFormScreen> {
 
   void _populateForm() {
     final p = widget.pinjaman!;
-    _pendapatanController.text = p['pendapatan_per_bulan']?.toString() ?? '';
+    final formatter = NumberFormat.decimalPattern('id_ID');
+
+    double? pendapatan = double.tryParse(p['pendapatan_per_bulan']?.toString() ?? '');
+    _pendapatanController.text = pendapatan != null ? formatter.format(pendapatan.toInt()) : '';
+
     _saudaraController.text = p['nama_saudara_terdekat'] ?? '';
     _teleponSaudaraController.text = p['no_telepon_saudara'] ?? '';
     _alamatSaudaraController.text = p['alamat_tempat_tinggal'] ?? '';
     _keperluanController.text = p['untuk_keperluan'] ?? '';
-    _nominalController.text = p['nominal']?.toString() ?? '';
+
+    double? nominalVal = double.tryParse(p['nominal']?.toString() ?? '');
+    _nominalController.text = nominalVal != null ? formatter.format(nominalVal.toInt()) : '';
+
     _tenorValue = p['tenor_cicilan']?.toString();
     _bankController.text = p['nama_bank'] ?? '';
     _noRekeningController.text = p['no_rekening'] ?? '';
@@ -132,12 +141,12 @@ class _PinjamanFormScreenState extends State<PinjamanFormScreen> {
       setState(() => _isLoading = true);
       try {
         final data = {
-          'pendapatan_per_bulan': _pendapatanController.text,
+          'pendapatan_per_bulan': _pendapatanController.text.replaceAll('.', ''),
           'nama_saudara_terdekat': _saudaraController.text,
           'no_telepon_saudara': _teleponSaudaraController.text,
           'alamat_tempat_tinggal': _alamatSaudaraController.text,
           'untuk_keperluan': _keperluanController.text,
-          'nominal': _nominalController.text,
+          'nominal': _nominalController.text.replaceAll('.', ''),
           'tenor_cicilan': _tenorValue!,
           'nama_bank': _bankController.text,
           'no_rekening': _noRekeningController.text,
@@ -243,7 +252,7 @@ class _PinjamanFormScreenState extends State<PinjamanFormScreen> {
             icon: Icons.account_balance_wallet_rounded,
             hint: '0',
             keyboardType: TextInputType.number,
-            formatters: [FilteringTextInputFormatter.digitsOnly],
+            formatters: [ThousandsFormatter()],
             prefixText: 'Rp ',
           ),
         ]),
@@ -268,7 +277,15 @@ class _PinjamanFormScreenState extends State<PinjamanFormScreen> {
         _buildFormCard([
           _buildDropdownField(label: 'Tujuan Pinjaman', icon: Icons.info_rounded, value: _keperluanController.text.isEmpty ? null : _keperluanController.text, items: ['Modal Usaha', 'Pendidikan', 'Renovasi', 'Kesehatan', 'Kebutuhan Mendesak', 'Lainnya'], onChanged: (v) => setState(() => _keperluanController.text = v!)),
           const SizedBox(height: 16),
-          _buildInputField(controller: _nominalController, label: 'Jumlah Pinjaman', icon: Icons.monetization_on_rounded, hint: '0', keyboardType: TextInputType.number, formatters: [FilteringTextInputFormatter.digitsOnly], prefixText: 'Rp '),
+          _buildInputField(
+            controller: _nominalController,
+            label: 'Jumlah Pinjaman',
+            icon: Icons.monetization_on_rounded,
+            hint: '0',
+            keyboardType: TextInputType.number,
+            formatters: [ThousandsFormatter()],
+            prefixText: 'Rp ',
+          ),
           const SizedBox(height: 16),
           _buildDropdownField(label: 'Tenor (Bulan)', icon: Icons.calendar_month_rounded, value: _tenorValue, items: _tenorOptions, onChanged: (v) => setState(() => _tenorValue = v!)),
         ]),

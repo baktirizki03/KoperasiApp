@@ -37,7 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final profile = await _apiService.getMyProfile();
       if (mounted) {
         setState(() {
-          _userName = profile['nama_lengkap'] ?? 'Nasabah';
+          _userName = profile['anggota']?['nama_lengkap'] ?? profile['name'] ?? 'Nasabah';
         });
       }
     } catch (e) {}
@@ -67,6 +67,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
             final riwayatAngsuran = data['riwayat_angsuran'] as List;
             final riwayatSimpanan = data['riwayat_simpanan'] as List;
 
+            // Filter data to only show last 1 month of mutations on dashboard
+            final now = DateTime.now();
+            final oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
+
+            final recentAngsuran = riwayatAngsuran.where((item) {
+              final dateStr = item['created_at']?.toString() ?? '';
+              if (dateStr.isEmpty) return false;
+              try {
+                final date = DateTime.parse(dateStr);
+                return date.isAfter(oneMonthAgo);
+              } catch (_) {
+                return false;
+              }
+            }).toList();
+
+            final recentSimpanan = riwayatSimpanan.where((item) {
+              final dateStr = (item['tanggal'] ?? item['created_at'])?.toString() ?? '';
+              if (dateStr.isEmpty) return false;
+              try {
+                final date = DateTime.parse(dateStr);
+                return date.isAfter(oneMonthAgo);
+              } catch (_) {
+                return false;
+              }
+            }).toList();
+
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
@@ -75,7 +101,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Column(
                     children: [
                       _buildSaldoCard(totalSimpanan),
-                      _buildRiwayatSection(riwayatAngsuran, riwayatSimpanan),
+                      _buildRiwayatSection(recentAngsuran, recentSimpanan),
                     ],
                   ),
                 ),
@@ -253,13 +279,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildRiwayatList(List items, {required bool isAngsuran}) {
     if (items.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history_rounded, size: 52, color: Colors.grey[300]),
-            const SizedBox(height: 12),
-            Text('Belum ada riwayat', style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 14)),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.history_rounded, size: 52, color: Colors.grey[300]),
+              const SizedBox(height: 12),
+              Text(
+                'Tidak ada mutasi 1 bulan terakhir',
+                style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isAngsuran 
+                  ? 'Silakan cek menu pinjaman untuk melihat riwayat lengkap.'
+                  : 'Silakan cek menu simpanan untuk melihat riwayat lengkap.',
+                style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 11),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }

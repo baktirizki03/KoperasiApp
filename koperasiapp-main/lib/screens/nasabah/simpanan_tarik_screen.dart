@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
@@ -56,7 +57,8 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
-        await _apiService.ajukanPenarikan({'nominal': _nominalController.text, 'tanggal': _tanggalController.text});
+        final nominalClean = _nominalController.text.replaceAll('.', '');
+        await _apiService.ajukanPenarikan({'nominal': nominalClean, 'tanggal': _tanggalController.text});
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Penarikan berhasil diajukan!'), backgroundColor: Colors.green));
           Navigator.of(context).pop(true);
@@ -94,9 +96,10 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
                         hint: 'e.g. 500.000',
                         icon: Icons.account_balance_wallet_rounded,
                         keyboardType: TextInputType.number,
+                        formatters: [ThousandsFormatter()],
                         validator: (v) {
                           if (v == null || v.isEmpty) return 'Wajib diisi';
-                          double? n = double.tryParse(v);
+                          double? n = double.tryParse(v.replaceAll('.', ''));
                           if (n == null) return 'Harus berupa angka';
                           if (n < 10000) return 'Minimal penarikan Rp 10.000';
                           if (n > _totalSaldo) return 'Saldo tidak mencukupi';
@@ -145,12 +148,22 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
     return Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(label, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[700])));
   }
 
-  Widget _buildField({required TextEditingController controller, required String hint, required IconData icon, bool readOnly = false, VoidCallback? onTap, TextInputType? keyboardType, String? Function(String?)? validator}) {
+  Widget _buildField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? formatters,
+    String? Function(String?)? validator,
+  }) {
     return TextFormField(
       controller: controller,
       readOnly: readOnly,
       onTap: onTap,
       keyboardType: keyboardType,
+      inputFormatters: formatters,
       validator: validator,
       style: GoogleFonts.poppins(fontSize: 14),
       decoration: InputDecoration(hintText: hint, prefixIcon: Icon(icon, size: 20, color: const Color(0xFF0D47A1)), filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.all(18), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 1))),

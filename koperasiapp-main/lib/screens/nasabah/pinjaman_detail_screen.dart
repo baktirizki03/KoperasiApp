@@ -115,6 +115,16 @@ class _NasabahPinjamanDetailScreenState
 
   Widget _buildSummaryCard(Map<String, dynamic> pinjaman) {
     final status = pinjaman['status'].toString();
+    
+    double bungaPersen = double.tryParse(pinjaman['bunga_persen']?.toString() ?? '0') ?? 0;
+    String bungaPersenStr = bungaPersen % 1 == 0 ? '${bungaPersen.toInt()}%' : '$bungaPersen%';
+    double bungaNominal = double.tryParse(pinjaman['bunga']?.toString() ?? '0') ?? 0;
+    double totalBayar = double.tryParse(pinjaman['total_bayar']?.toString() ?? '0') ?? 0;
+    if (totalBayar == 0) {
+      double nominal = double.tryParse(pinjaman['nominal']?.toString() ?? '0') ?? 0;
+      totalBayar = nominal + bungaNominal;
+    }
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -145,6 +155,8 @@ class _NasabahPinjamanDetailScreenState
           const SizedBox(height: 20),
           _buildInfoRow(Icons.receipt_long_rounded, 'Keperluan', pinjaman['untuk_keperluan'] ?? '-'),
           _buildInfoRow(Icons.calendar_month_rounded, 'Tenor Pinjaman', '${pinjaman['tenor_cicilan']} Bulan'),
+          _buildInfoRow(Icons.percent_rounded, 'Bunga Pinjaman', '$bungaPersenStr (${formatRupiah(bungaNominal)})'),
+          _buildInfoRow(Icons.payments_rounded, 'Total Pengembalian', formatRupiah(totalBayar)),
           _buildInfoRow(Icons.account_balance_rounded, 'Bank Penerima', pinjaman['nama_bank'] ?? '-'),
           _buildInfoRow(Icons.numbers_rounded, 'Nomor Rekening', pinjaman['no_rekening'] ?? '-'),
           _buildInfoRow(Icons.wallet_rounded, 'Pendapatan', formatRupiah(pinjaman['pendapatan_per_bulan'])),

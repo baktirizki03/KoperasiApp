@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
-import 'package:koperasiapp/screens/nasabah/simpanan_form_screen.dart';
+import 'simpanan_form_screen.dart';
 import 'simpanan_tarik_screen.dart';
+import 'simpanan_history_screen.dart';
 import '../../services/api_service.dart';
 import '../../utils/currency_formatter.dart';
 
@@ -54,6 +55,7 @@ class _SimpananScreenState extends State<SimpananScreen> {
 
             final data = snapshot.data!;
             final transactions = data['transactions'] as List;
+            final recentTransactions = transactions.take(5).toList();
             final double balance = double.tryParse(data['total_simpanan'].toString()) ?? 0;
 
             return Stack(
@@ -70,7 +72,7 @@ class _SimpananScreenState extends State<SimpananScreen> {
                           const SizedBox(height: 32),
                           _buildActivityHeader(),
                           const SizedBox(height: 16),
-                          if (transactions.isEmpty) _buildNoTransactionsState() else ...transactions.asMap().entries.map((e) => _buildTransactionItem(e.value, e.key)).toList(),
+                          if (recentTransactions.isEmpty) _buildNoTransactionsState() else ...recentTransactions.asMap().entries.map((e) => _buildTransactionItem(e.value, e.key)).toList(),
                           const SizedBox(height: 100),
                         ]),
                       ),
@@ -158,7 +160,15 @@ class _SimpananScreenState extends State<SimpananScreen> {
             Text('Aktivitas Terkini', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436))),
           ],
         ),
-        Text('Lihat Semua', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0D47A1))),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SimpananHistoryScreen()),
+            );
+          },
+          child: Text('Lihat Semua', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0D47A1))),
+        ),
       ],
     );
   }

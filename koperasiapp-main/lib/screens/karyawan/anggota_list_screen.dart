@@ -23,6 +23,44 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
   List<dynamic> _filteredAnggota = [];
   String _searchQuery = '';
   String _filterStatus = 'Semua';
+  bool _isExportingPdf = false;
+
+  int _statTotal = 0;
+  int _statVerified = 0;
+  int _statBelum = 0;
+  int _statLaki = 0;
+  int _statPerempuan = 0;
+
+  void _exportPdf() async {
+    setState(() => _isExportingPdf = true);
+    try {
+      String status = 'Semua';
+      if (_filterStatus == 'Terverifikasi') {
+        status = 'Terverifikasi';
+      } else if (_filterStatus == 'Belum') {
+        status = 'Belum';
+      }
+
+      final apiPath = 'export/anggota';
+      final fileName = 'Laporan_Anggota_${status}.pdf';
+      
+      await _apiService.downloadPdf(apiPath, fileName, status: status);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Berhasil mengunduh & membuka PDF'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengekspor PDF: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExportingPdf = false);
+    }
+  }
 
   @override
   void initState() {
@@ -38,6 +76,39 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
         return data;
       });
     });
+  }
+
+  void _calculateStats() {
+    int total = 0;
+    int verified = 0;
+    int belum = 0;
+    int laki = 0;
+    int perempuan = 0;
+
+    for (var item in _filteredAnggota) {
+      total++;
+      
+      final val = item['is_ktp_verified'];
+      final bool isVerified = val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
+      if (isVerified) {
+        verified++;
+      } else {
+        belum++;
+      }
+
+      final jk = (item['jenis_kelamin'] ?? '').toString().toLowerCase();
+      if (jk == 'l' || jk == 'laki-laki' || jk == 'laki') {
+        laki++;
+      } else {
+        perempuan++;
+      }
+    }
+
+    _statTotal = total;
+    _statVerified = verified;
+    _statBelum = belum;
+    _statLaki = laki;
+    _statPerempuan = perempuan;
   }
 
   void _applyFilter() {
@@ -60,6 +131,7 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
 
         return matchesSearch && matchesFilter;
       }).toList();
+      _calculateStats();
     });
   }
 
@@ -350,9 +422,27 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
                           IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20), onPressed: () => Navigator.pop(context)),
                           Text('Daftar Anggota', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                           if (isKetuaOrKaryawan)
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.white),
-                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AnggotaTrashScreen())).then((_) => _loadAnggota()),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (role == 'ketua')
+                                  _isExportingPdf
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                        )
+                                      : IconButton(
+                                          icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
+                                          onPressed: _exportPdf,
+                                          tooltip: 'Cetak PDF',
+                                        ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+                                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AnggotaTrashScreen())).then((_) => _loadAnggota()),
+                                  tooltip: 'Tempat Sampah',
+                                ),
+                              ],
                             )
                           else
                             const SizedBox(width: 48),
@@ -396,6 +486,79 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
               ),
             ).animate().fadeIn(delay: 200.ms),
           ),
+
+          // --- OVERVIEW CARD ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  )
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'TOTAL ANGGOTA TERDAFTAR',
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$_statTotal Orang',
+                            style: GoogleFonts.poppins(
+                              color: const Color(0xFF673AB7),
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.people_rounded,
+                          color: Colors.purple,
+                          size: 24,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildSimpleSummaryCol('Terverifikasi', '$_statVerified Orang', Colors.green),
+                      _buildSimpleSummaryCol('Belum Verif', '$_statBelum Orang', Colors.orange),
+                      _buildSimpleSummaryCol('Laki-laki', '$_statLaki L', const Color(0xFF0D47A1)),
+                      _buildSimpleSummaryCol('Perempuan', '$_statPerempuan P', Colors.pink),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
           Expanded(
             child: FutureBuilder<List<dynamic>>(
@@ -524,5 +687,29 @@ class _AnggotaListScreenState extends State<AnggotaListScreen> {
         ],
       ),
     ).animate().fadeIn(delay: (index * 50).ms).slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildSimpleSummaryCol(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF2D3436),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 9,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
   }
 }

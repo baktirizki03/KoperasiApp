@@ -9,6 +9,7 @@ import 'anggota_list_screen.dart';
 import 'pinjaman_list_screen.dart';
 import 'simpanan_verifikasi_screen.dart';
 import 'pinjaman_detail_screen.dart';
+import 'karyawan_laporan_screen.dart';
 
 class KaryawanDashboard extends StatefulWidget {
   const KaryawanDashboard({super.key});
@@ -253,6 +254,16 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
                         badgeCount: countSimpanan,
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (ctx) => const SimpananVerifikasiScreen())).then((_) => _loadDashboard()),
                         delay: 700,
+                      ),
+                      _buildMenuCard(
+                        context,
+                        title: 'Laporan Koperasi',
+                        subtitle: 'Daftar & Cetak Laporan PDF',
+                        icon: Icons.picture_as_pdf_rounded,
+                        color: const Color(0xFF1565C0),
+                        badgeCount: 0,
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (ctx) => const KaryawanLaporanScreen())),
+                        delay: 800,
                       ),
                     ]),
                   ),

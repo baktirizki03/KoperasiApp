@@ -267,6 +267,15 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
           final bool isPending = pinjaman['status'] == 'pending';
           final bool isApproved = pinjaman['status'] == 'disetujui' || pinjaman['status'] == 'lunas';
 
+          double bungaPersen = double.tryParse(pinjaman['bunga_persen']?.toString() ?? '0') ?? 0;
+          String bungaPersenStr = bungaPersen % 1 == 0 ? '${bungaPersen.toInt()}%' : '$bungaPersen%';
+          double bungaNominal = double.tryParse(pinjaman['bunga']?.toString() ?? '0') ?? 0;
+          double totalBayar = double.tryParse(pinjaman['total_bayar']?.toString() ?? '0') ?? 0;
+          if (totalBayar == 0) {
+            double nominal = double.tryParse(pinjaman['nominal']?.toString() ?? '0') ?? 0;
+            totalBayar = nominal + bungaNominal;
+          }
+
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
@@ -297,7 +306,8 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                       children: [
                         _buildDetailRow('Nominal', formatRupiah(pinjaman['nominal'])),
                         _buildDetailRow('Tenor', '${pinjaman['tenor_cicilan']} Bulan'),
-                        _buildDetailRow('Bunga', '${pinjaman['bunga'] ?? '0'} %'),
+                        _buildDetailRow('Bunga', '$bungaPersenStr (${formatRupiah(bungaNominal)})'),
+                        _buildDetailRow('Total Pengembalian', formatRupiah(totalBayar)),
                         _buildDetailRow('Keperluan', pinjaman['untuk_keperluan'] ?? '-'),
                         _buildDetailRow('Metode', pinjaman['metode_pembayaran']?.toUpperCase() ?? 'TRANSFER'),
                       ],

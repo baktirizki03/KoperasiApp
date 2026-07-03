@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _email = '';
   String _password = '';
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   void _showErrorDialog(String message) {
     showDialog(
@@ -176,10 +177,23 @@ class _LoginScreenState extends State<LoginScreen> {
                         .fadeIn(delay: 400.ms)
                         .slideX(begin: -0.1, end: 0),
 
-                    CustomTextField(
+                     CustomTextField(
                           label: 'Password',
-                          obscureText: true,
+                          obscureText: _obscurePassword,
                           icon: Icons.lock_outline_rounded,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_rounded
+                                  : Icons.visibility_rounded,
+                              color: const Color(0xFF1A237E),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
                           validator: (value) {
                             if (value == null ||
                                 value.isEmpty ||

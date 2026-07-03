@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../widgets/secure_image_widget.dart';
 
@@ -240,7 +241,7 @@ class _AnggotaDetailScreenState extends State<AnggotaDetailScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Diverifikasi oleh: ${anggota['verified_by_name'] ?? anggota['verified_by']?['role']?.toString().toUpperCase() ?? '-'}',
+                        'Diverifikasi oleh: ${anggota['verified_by_name'] ?? 'Admin/Sistem'}${anggota['updated_at'] != null ? ' pada ${DateTime.tryParse(anggota['updated_at'].toString()) != null ? DateFormat('dd/MM/yyyy HH:mm').format(DateTime.tryParse(anggota['updated_at'].toString())!.toLocal()) : '-'}' : ''}',
                         style: GoogleFonts.poppins(fontSize: 11, color: Colors.blueGrey[600], fontStyle: FontStyle.italic),
                       ),
                     ),

@@ -8,9 +8,9 @@ import 'package:open_file/open_file.dart';
 class ApiService {
   // --- Link API ---
   // Gunakan localhost untuk Desktop/Web, atau 10.0.2.2 untuk Emulator Android
-   final String _baseUrl = "https://kkmps.my.id/api";
+  //  final String _baseUrl = "https://kkmps.my.id/api";
   // final String _baseUrl = "http://localhost:8000/api";
-  // final String _baseUrl = "http://10.0.2.2:8000/api";
+  final String _baseUrl = "http://10.0.2.2:8000/api";
 
   String get storageUrl => _baseUrl.replaceAll('/api', '/storage');
 
@@ -339,7 +339,9 @@ class ApiService {
   }
 
   Future<dynamic> rejectAngsuran(int angsuranId, String alasan) async {
-    return await post('angsuran/$angsuranId/reject', {'alasan_penolakan': alasan});
+    return await post('angsuran/$angsuranId/reject', {
+      'alasan_penolakan': alasan,
+    });
   }
 
   Future<List<dynamic>> getAllSimpanan() async {
@@ -621,15 +623,22 @@ class ApiService {
   }
 
   // --- PDF DOWNLOADER ---
-  Future<String> downloadPdf(String endpoint, String filename, {int? bulan, int? tahun}) async {
+  Future<String> downloadPdf(
+    String endpoint,
+    String filename, {
+    int? bulan,
+    int? tahun,
+    String? status,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
-    
+
     // Bangun URL dengan query params
     String url = '$_baseUrl/$endpoint?';
     if (bulan != null) url += 'bulan=$bulan&';
     if (tahun != null) url += 'tahun=$tahun&';
-    
+    if (status != null) url += 'status=$status&';
+
     if (url.endsWith('&') || url.endsWith('?')) {
       url = url.substring(0, url.length - 1);
     }
@@ -646,7 +655,7 @@ class ApiService {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/$filename');
       await file.writeAsBytes(response.bodyBytes);
-      
+
       // Buka file pdf-nya
       await OpenFile.open(file.path);
       return file.path;

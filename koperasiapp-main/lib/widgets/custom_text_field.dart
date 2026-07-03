@@ -7,6 +7,7 @@ class CustomTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final void Function(String?)? onSaved;
   final IconData? icon;
+  final Widget? suffixIcon;
   final TextEditingController? controller;
   final int maxLines;
 
@@ -18,6 +19,7 @@ class CustomTextField extends StatelessWidget {
     this.validator,
     this.onSaved,
     this.icon,
+    this.suffixIcon,
     this.controller,
     this.maxLines = 1,
   });
@@ -32,7 +34,7 @@ class CustomTextField extends StatelessWidget {
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon != null ? Icon(icon) : null,
-          // Theme handles borders and colors now
+          suffixIcon: suffixIcon,
         ),
         obscureText: obscureText,
         keyboardType: keyboardType,
