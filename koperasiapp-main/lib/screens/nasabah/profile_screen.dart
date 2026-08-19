@@ -6,6 +6,7 @@ import 'package:koperasiapp/screens/nasabah/profile_edit_screen.dart';
 import '../common/change_password_screen.dart';
 import '../../services/api_service.dart';
 import '../../widgets/secure_image_widget.dart';
+import '../../utils/file_validator.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -36,16 +37,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickAndUploadKtp() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (image != null) {
       try {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mengunggah KTP...')));
         final bytes = await image.readAsBytes();
+        final validation = FileValidator.validateBytes(bytes, image.name, fileLabel: 'KTP');
+        if (!validation.isValid) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(validation.errorMessage ?? 'File tidak valid'), backgroundColor: Colors.red),
+          );
+          return;
+        }
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mengunggah KTP...')));
         await _apiService.uploadKtp(bytes, image.name);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('KTP berhasil diunggah!'), backgroundColor: Colors.green));
         _loadProfile();
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengunggah: $e'), backgroundColor: Colors.red));
       }

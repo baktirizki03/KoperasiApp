@@ -19,6 +19,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late Future<Map<String, dynamic>> _dashboardFuture;
   String _userName = 'Nasabah';
 
+  int _unreadNotificationCount = 0;
+  List<dynamic> _notificationsList = [];
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +33,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _dashboardFuture = _apiService.getDashboardData();
     });
     _fetchUserName();
+    _fetchNotifications();
   }
 
   Future<void> _fetchUserName() async {
@@ -40,7 +44,210 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _userName = profile['anggota']?['nama_lengkap'] ?? profile['name'] ?? 'Nasabah';
         });
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error fetching user name: $e');
+    }
+  }
+
+  Future<void> _fetchNotifications() async {
+    try {
+      final res = await _apiService.getMyNotifications();
+      if (mounted) {
+        setState(() {
+          _notificationsList = res['notifications'] ?? [];
+          _unreadNotificationCount = res['unread_count'] ?? 0;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching notifications: $e');
+    }
+  }
+
+  void _showNotificationBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              ),
+              child: Column(
+                children: [
+                  // Handle Bar
+                  Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0D47A1).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.notifications_active_rounded, color: Color(0xFF0D47A1), size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Pembaruan Informasi',
+                              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Body List
+                  Expanded(
+                    child: _notificationsList.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.notifications_none_rounded, size: 64, color: Colors.grey[400]),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Belum ada pembaruan informasi',
+                                  style: GoogleFonts.poppins(color: Colors.grey[600], fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(20),
+                            itemCount: _notificationsList.length,
+                            separatorBuilder: (ctx, i) => const SizedBox(height: 12),
+                            itemBuilder: (ctx, index) {
+                              final item = _notificationsList[index];
+                              final status = item['status'] ?? 'info';
+
+                              Color statusColor;
+                              IconData statusIcon;
+                              switch (status) {
+                                case 'success':
+                                  statusColor = const Color(0xFF10B981);
+                                  statusIcon = Icons.check_circle_rounded;
+                                  break;
+                                case 'warning':
+                                  statusColor = const Color(0xFFF59E0B);
+                                  statusIcon = Icons.error_rounded;
+                                  break;
+                                case 'danger':
+                                  statusColor = const Color(0xFFEF4444);
+                                  statusIcon = Icons.cancel_rounded;
+                                  break;
+                                default:
+                                  statusColor = const Color(0xFF3B82F6);
+                                  statusIcon = Icons.info_rounded;
+                              }
+
+                              String formattedDate = '';
+                              if (item['date'] != null) {
+                                try {
+                                  final d = DateTime.parse(item['date']);
+                                  formattedDate = DateFormat('dd MMM yyyy, HH:mm').format(d);
+                                } catch (_) {
+                                  formattedDate = item['date'].toString();
+                                }
+                              }
+
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.04),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                  border: Border.all(color: statusColor.withOpacity(0.2)),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withOpacity(0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(statusIcon, color: statusColor, size: 20),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  item['title'] ?? 'Pemberitahuan',
+                                                  style: GoogleFonts.poppins(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    color: const Color(0xFF1E293B),
+                                                  ),
+                                                ),
+                                              ),
+                                              Text(
+                                                formattedDate,
+                                                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[500]),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            item['message'] ?? '',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12.5,
+                                              color: const Color(0xFF475569),
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ).animate().fadeIn(duration: 300.ms, delay: (index * 40).ms);
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -143,23 +350,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Halo, ${_userName.split(' ')[0]}!',
+                    style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  Text(
+                    'Selamat datang di dashboard nasabah',
+                    style: GoogleFonts.poppins(fontSize: 13, color: Colors.white.withOpacity(0.8)),
+                  ),
+                ],
+              ),
+            ),
+            Row(
               children: [
-                Text(
-                  'Halo, ${_userName.split(' ')[0]}!',
-                  style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                Stack(
+                  children: [
+                    IconButton(
+                      onPressed: _showNotificationBottomSheet,
+                      icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
+                      style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.2)),
+                      tooltip: 'Pembaruan Informasi',
+                    ),
+                    if (_unreadNotificationCount > 0)
+                      Positioned(
+                        right: 4,
+                        top: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Center(
+                            child: Text(
+                              _unreadNotificationCount > 9 ? '9+' : '$_unreadNotificationCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                Text(
-                  'Selamat datang di dashboard nasabah',
-                  style: GoogleFonts.poppins(fontSize: 13, color: Colors.white.withOpacity(0.8)),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => Provider.of<AuthProvider>(context, listen: false).logout(),
+                  icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                  style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.2)),
+                  tooltip: 'Keluar',
                 ),
               ],
-            ),
-            IconButton(
-              onPressed: () => Provider.of<AuthProvider>(context, listen: false).logout(),
-              icon: const Icon(Icons.logout_rounded, color: Colors.white),
-              style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.2)),
             ),
           ],
         ).animate().fadeIn(duration: 600.ms).slideY(begin: -0.2, end: 0),

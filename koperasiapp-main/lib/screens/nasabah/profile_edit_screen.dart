@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 import '../../widgets/secure_image_widget.dart';
+import '../../utils/file_validator.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   final Map<String, dynamic> anggota;
@@ -97,8 +98,24 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
-    if (pickedFile != null) setState(() => _imageFile = pickedFile);
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (pickedFile != null) {
+      final bytes = await File(pickedFile.path).readAsBytes();
+      final validation = FileValidator.validateBytes(
+        bytes,
+        pickedFile.name,
+        allowedExtensions: FileValidator.imageOnlyExtensions,
+        fileLabel: 'Foto profil',
+      );
+      if (!validation.isValid) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(validation.errorMessage ?? 'File tidak valid'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+      setState(() => _imageFile = pickedFile);
+    }
   }
 
   void _submitForm() async {

@@ -34,6 +34,7 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
   Future<void> _approveSimpanan(int id) async {
     try {
       await _apiService.approveSimpanan(id);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Simpanan berhasil disetujui'),
@@ -43,6 +44,7 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
       );
       _loadData();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal menyetujui: $e'),
@@ -50,6 +52,66 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  Future<void> _rejectSimpanan(int id) async {
+    final controller = TextEditingController();
+    final alasan = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text('Tolak Simpanan', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: 'Masukkan alasan penolakan',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          autofocus: true,
+          maxLines: 2,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) Navigator.of(ctx).pop(controller.text);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Tolak', style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (alasan != null && alasan.isNotEmpty) {
+      try {
+        await _apiService.rejectSimpanan(id, alasan);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Simpanan berhasil ditolak'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        _loadData();
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menolak: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -203,7 +265,23 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    if (!isKetua)
+                    if (!isKetua) ...[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _rejectSimpanan(simpanan['id']);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text('TOLAK', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
@@ -219,6 +297,7 @@ class _SimpananVerifikasiScreenState extends State<SimpananVerifikasiScreen> {
                           child: Text('SETUJUI', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                         ),
                       ),
+                    ],
                   ],
                 ),
               ),

@@ -65,10 +65,12 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
     _showLoadingDialog();
     try {
       await _apiService.approvePinjaman(widget.pinjamanId);
+      if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pinjaman berhasil disetujui'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
       Navigator.of(context).pop(true);
     } catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
     }
@@ -101,10 +103,12 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
       _showLoadingDialog();
       try {
         await _apiService.rejectPinjaman(widget.pinjamanId, alasan);
+        if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pinjaman berhasil ditolak'), backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
         Navigator.of(context).pop(true);
       } catch (e) {
+        if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
@@ -138,10 +142,12 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
       _showLoadingDialog();
       try {
         await _apiService.requestRevision(widget.pinjamanId, alasan);
+        if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permintaan perbaikan berhasil dikirim'), backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
         Navigator.of(context).pop(true);
       } catch (e) {
+        if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
@@ -170,10 +176,12 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
       _showLoadingDialog();
       try {
         await _apiService.payAngsuran(angsuranId);
+        if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pembayaran berhasil dicatat'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
         _loadDetail();
       } catch (e) {
+        if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
@@ -562,14 +570,5 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
         ],
       ),
     );
-  }
-
-  Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'lunas': return Colors.green;
-      case 'disetujui': return Colors.blue;
-      case 'ditolak': return Colors.red;
-      default: return Colors.orange;
-    }
   }
 }

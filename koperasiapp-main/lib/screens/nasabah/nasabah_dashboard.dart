@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../providers/auth_provider.dart';
 import 'profile_screen.dart';
 import 'pinjaman_screen.dart';
 import 'simpanan_screen.dart';
@@ -23,21 +21,6 @@ class _NasabahDashboardState extends State<NasabahDashboard> {
     SimpananScreen(),
     ProfileScreen(),
   ];
-
-  String _getTitle() {
-    switch (_selectedIndex) {
-      case 0:
-        return 'Dashboard';
-      case 1:
-        return 'Pinjaman';
-      case 2:
-        return 'Simpanan';
-      case 3:
-        return 'Profil Saya';
-      default:
-        return '';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/file_validator.dart';
 
 class SimpananFormScreen extends StatefulWidget {
   const SimpananFormScreen({super.key});
@@ -15,16 +16,16 @@ class SimpananFormScreen extends StatefulWidget {
 }
 
 class _SimpananFormScreenState extends State<SimpananFormScreen> {
-  final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
-  bool _isLoading = false;
-  double _totalSaldo = 0;
-
+  final _formKey = GlobalKey<FormState>();
   final _nominalController = TextEditingController();
   final _tanggalController = TextEditingController();
-  String? _jenisTransaksiValue;
-  XFile? _buktiFile;
   final ImagePicker _picker = ImagePicker();
+
+  String? _jenisTransaksiValue = 'Simpanan Sukarela';
+  XFile? _buktiFile;
+  bool _isLoading = false;
+  double _totalSaldo = 0;
 
   @override
   void initState() {
@@ -57,8 +58,19 @@ class _SimpananFormScreenState extends State<SimpananFormScreen> {
   }
 
   Future<void> _pickFile() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
-    if (image != null) setState(() => _buktiFile = image);
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      final validation = FileValidator.validateBytes(bytes, image.name, fileLabel: 'Bukti transfer');
+      if (!validation.isValid) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(validation.errorMessage ?? 'File tidak valid'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+      setState(() => _buktiFile = image);
+    }
   }
 
   void _submitForm() async {
@@ -66,14 +78,28 @@ class _SimpananFormScreenState extends State<SimpananFormScreen> {
       setState(() => _isLoading = true);
       try {
         final bytes = await _buktiFile!.readAsBytes();
+        final validation = FileValidator.validateBytes(bytes, _buktiFile!.name, fileLabel: 'Bukti transfer');
+        if (!validation.isValid) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(validation.errorMessage ?? 'File tidak valid'), backgroundColor: Colors.red),
+          );
+          setState(() => _isLoading = false);
+          return;
+        }
+
         final nominalClean = _nominalController.text.replaceAll('.', '');
         await _apiService.ajukanSimpanan({'nominal': nominalClean, 'jenis_transaksi': _jenisTransaksiValue!, 'tanggal': _tanggalController.text}, bytes, _buktiFile!.name);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Setoran berhasil diajukan!'), backgroundColor: Colors.green));
-          Navigator.of(context).pop(true);
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pengajuan simpanan berhasil dikirim'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context, true);
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red));
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengirim: $e'), backgroundColor: Colors.red),
+        );
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }

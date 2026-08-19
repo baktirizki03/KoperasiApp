@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/file_validator.dart';
 
 class PinjamanFormScreen extends StatefulWidget {
   final Map<String, dynamic>? pinjaman;
@@ -101,9 +102,24 @@ class _PinjamanFormScreenState extends State<PinjamanFormScreen> {
   }
 
   Future<void> _pickFile(String type, ImageSource source) async {
-    final XFile? image = await _picker.pickImage(source: source, imageQuality: 50);
+    final XFile? image = await _picker.pickImage(source: source, imageQuality: 70);
 
     if (image != null) {
+      final bytes = await image.readAsBytes();
+      final label = type == 'slip_gaji'
+          ? 'Slip Gaji'
+          : type == 'kk'
+              ? 'Kartu Keluarga'
+              : 'ID Karyawan';
+      final validation = FileValidator.validateBytes(bytes, image.name, fileLabel: label);
+      if (!validation.isValid) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(validation.errorMessage ?? 'File tidak valid'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+
       setState(() {
         if (type == 'slip_gaji') _slipGajiFile = image;
         else if (type == 'kk') _kkFile = image;

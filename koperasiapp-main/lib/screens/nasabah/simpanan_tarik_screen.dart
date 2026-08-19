@@ -36,7 +36,9 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
       setState(() {
         _totalSaldo = double.tryParse(data['total_simpanan'].toString()) ?? 0;
       });
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error fetching balance: $e');
+    }
   }
 
   @override

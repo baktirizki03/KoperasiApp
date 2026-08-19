@@ -1,8 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'dart:io';
+import '../utils/file_validator.dart';
 import '../services/api_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
@@ -222,8 +224,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       imageQuality: 80,
     );
     if (pickedFile != null) {
+      final file = File(pickedFile.path);
+      final validation = await FileValidator.validateFile(file, fileLabel: 'Foto KTP');
+      if (!validation.isValid) {
+        _showError(validation.errorMessage ?? 'File tidak valid');
+        return;
+      }
       setState(() {
-        _ktpImage = File(pickedFile.path);
+        _ktpImage = file;
       });
     }
   }

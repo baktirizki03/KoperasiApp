@@ -334,6 +334,12 @@ class ApiService {
     return await post('simpanan/$id/approve', {});
   }
 
+  Future<dynamic> rejectSimpanan(int id, String alasan) async {
+    return await post('simpanan/$id/reject', {
+      'alasan_penolakan': alasan,
+    });
+  }
+
   Future<dynamic> payAngsuran(int angsuranId) async {
     return await post('angsuran/$angsuranId/pay', {});
   }
@@ -356,9 +362,7 @@ class ApiService {
   }
 
   Future<List<dynamic>> getAllAngsuran() async {
-    // Assuming api/angsuran exists for Karyawan to list all.
-    // If not, this might need fallback to iterating loans or api/laporan-ketua/angsuran
-    final responseData = await get('angsuran'); // Attempting standard endpoint
+    final responseData = await get('laporan/angsuran');
     if (responseData is List) return responseData;
     if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
@@ -370,6 +374,11 @@ class ApiService {
 
   Future<Map<String, dynamic>> getDashboardData() async {
     final responseData = await get('dashboard');
+    return responseData as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getMyNotifications() async {
+    final responseData = await get('my-notifications');
     return responseData as Map<String, dynamic>;
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/api_service.dart';
+import '../../utils/file_validator.dart';
 
 class AnggotaFormScreen extends StatefulWidget {
   final Map<String, dynamic>? anggota;
@@ -507,8 +508,19 @@ class _AnggotaFormScreenState extends State<AnggotaFormScreen> {
   Widget _buildPhotoUploadArea() {
     return InkWell(
       onTap: () async {
-        final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
-        if (image != null) setState(() => _ktpFile = image);
+        final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+        if (image != null) {
+          final bytes = await image.readAsBytes();
+          final validation = FileValidator.validateBytes(bytes, image.name, fileLabel: 'KTP');
+          if (!validation.isValid) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(validation.errorMessage ?? 'File tidak valid'), backgroundColor: Colors.red),
+            );
+            return;
+          }
+          setState(() => _ktpFile = image);
+        }
       },
       child: Container(
         height: 160,
