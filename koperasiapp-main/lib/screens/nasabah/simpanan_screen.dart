@@ -141,7 +141,11 @@ class _SimpananScreenState extends State<SimpananScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(formatRupiah(balance), style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(formatRupiah(balance), style: GoogleFonts.poppins(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
           const SizedBox(height: 16),
           Container(height: 1, width: double.infinity, color: Colors.white.withOpacity(0.1)),
           const SizedBox(height: 16),

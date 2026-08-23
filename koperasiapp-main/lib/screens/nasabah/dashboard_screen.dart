@@ -674,7 +674,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Text('SALDO SIMPANAN', style: GoogleFonts.poppins(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                   const SizedBox(height: 4),
-                  Text(formatRupiah(saldo), style: GoogleFonts.poppins(color: const Color(0xFF0D47A1), fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(formatRupiah(saldo), style: GoogleFonts.poppins(color: const Color(0xFF0D47A1), fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                  ),
                 ],
               ),
               Container(

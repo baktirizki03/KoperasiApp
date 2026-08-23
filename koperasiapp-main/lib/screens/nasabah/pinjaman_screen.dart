@@ -197,7 +197,11 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
                   children: [
                     Text('Saldo Pinjaman Aktif', style: GoogleFonts.poppins(fontSize: 12, color: Colors.white.withOpacity(0.8), fontWeight: FontWeight.w500)),
                     const SizedBox(height: 4),
-                    Text(formatRupiah(totalActiveLoan), style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(formatRupiah(totalActiveLoan), style: GoogleFonts.poppins(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
                   ],
                 ),
                 Container(
