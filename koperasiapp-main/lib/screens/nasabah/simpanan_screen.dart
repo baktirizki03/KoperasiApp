@@ -287,11 +287,40 @@ class _SimpananScreenState extends State<SimpananScreen> {
             isDisabled: hasTunggakan,
             onTap: () async {
               if (hasTunggakan) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Penarikan simpanan ditangguhkan karena ada angsuran menunggak.'),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
+                showDialog(
+                  context: context,
+                  builder: (ctx) => Dialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
+                            child: const Icon(Icons.block_rounded, color: Colors.red, size: 40),
+                          ),
+                          const SizedBox(height: 16),
+                          Text('Akses Penarikan Diblokir', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red[900])),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Penarikan simpanan tidak dapat diakses karena Anda memiliki angsuran pinjaman yang menunggak lewat dari tanggal jatuh tempo. Harap lunasi angsuran Anda terlebih dahulu.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(color: Colors.grey[700], fontSize: 13, height: 1.4),
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                              onPressed: () => Navigator.pop(ctx),
+                              child: Text('Saya Mengerti', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 );
                 return;

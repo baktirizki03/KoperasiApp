@@ -19,6 +19,8 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
   double _totalSaldo = 0;
+  bool _hasTunggakan = false;
+  Map<String, dynamic>? _tunggakanInfo;
 
   final _nominalController = TextEditingController();
   final _tanggalController = TextEditingController();
@@ -35,6 +37,8 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
       final data = await _apiService.getDashboardData();
       setState(() {
         _totalSaldo = double.tryParse(data['total_simpanan'].toString()) ?? 0;
+        _hasTunggakan = data['has_tunggakan'] == true;
+        _tunggakanInfo = data['tunggakan_info'];
       });
     } catch (e) {
       debugPrint('Error fetching balance: $e');
@@ -56,6 +60,15 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
   }
 
   void _submitForm() async {
+    if (_hasTunggakan) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Penarikan ditangguhkan karena ada angsuran menunggak.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
@@ -88,8 +101,13 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const InfoBox(text: 'Penarikan akan diambil dari saldo Tabungan Sukarela Anda. Prosesnya biasanya memakan waktu 1-2 hari kerja.', icon: Icons.info_outline_rounded),
-                    const SizedBox(height: 32),
+                    if (_hasTunggakan) ...[
+                      _buildTunggakanWarningCard(),
+                      const SizedBox(height: 20),
+                    ] else ...[
+                      const InfoBox(text: 'Penarikan akan diambil dari saldo Tabungan Sukarela Anda. Prosesnya biasanya memakan waktu 1-2 hari kerja.', icon: Icons.info_outline_rounded),
+                      const SizedBox(height: 32),
+                    ],
                     _buildFormHeader('Rincian Penarikan'),
                     const SizedBox(height: 16),
                     _buildLabel('Jumlah Penarikan (Rp)'),
@@ -210,6 +228,49 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
   }
 
+  Widget _buildTunggakanWarningCard() {
+    final angsuranKe = _tunggakanInfo?['angsuran_ke']?.toString() ?? '-';
+    final nominal = _tunggakanInfo?['jumlah_bayar'] != null
+        ? formatRupiah(double.tryParse(_tunggakanInfo!['jumlah_bayar'].toString()) ?? 0)
+        : '-';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEE),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.red.shade300, width: 1.5),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: Colors.red.shade100, shape: BoxShape.circle),
+            child: const Icon(Icons.block_rounded, color: Colors.red, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Penarikan Ditangguhkan!',
+                  style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red[900]),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Anda memiliki tunggakan Angsuran ke-$angsuranKe sebesar $nominal yang telah lewat jatuh tempo. Harap lunasi angsuran Anda terlebih dahulu.',
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.red[800], height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBottomAction() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -219,9 +280,19 @@ class _SimpananTarikScreenState extends State<SimpananTarikScreen> {
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
-            onPressed: _isLoading ? null : _submitForm,
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D47A1), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 4, shadowColor: const Color(0xFF0D47A1).withOpacity(0.4)),
-            child: _isLoading ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text('Konfirmasi Penarikan', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold)),
+            onPressed: (_isLoading || _hasTunggakan) ? null : _submitForm,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _hasTunggakan ? Colors.grey[400] : const Color(0xFF0D47A1),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: _hasTunggakan ? 0 : 4,
+            ),
+            child: _isLoading
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : Text(
+                    _hasTunggakan ? 'Penarikan Diblokir (Menunggak)' : 'Konfirmasi Penarikan',
+                    style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
           ),
         ),
       ),
