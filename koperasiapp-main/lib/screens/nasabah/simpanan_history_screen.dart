@@ -219,7 +219,7 @@ class _SimpananHistoryScreenState extends State<SimpananHistoryScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.02),
+              color: status == 'ditolak' ? Colors.red.withOpacity(0.05) : Theme.of(context).colorScheme.primary.withOpacity(0.02),
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(20),
                 bottomRight: Radius.circular(20),
@@ -228,11 +228,15 @@ class _SimpananHistoryScreenState extends State<SimpananHistoryScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.check_circle_outline, size: 14, color: typeColor.withOpacity(0.5)),
+                Icon(status == 'ditolak' ? Icons.info_outline_rounded : Icons.check_circle_outline, size: 14, color: status == 'ditolak' ? Colors.red : typeColor.withOpacity(0.5)),
                 const SizedBox(width: 8),
-                Text(
-                  _getStatusMessage(status, isKredit),
-                  style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+                Expanded(
+                  child: Text(
+                    status == 'ditolak' && trans['alasan_penolakan'] != null && trans['alasan_penolakan'].toString().isNotEmpty
+                        ? 'Ditolak: ${trans['alasan_penolakan']}'
+                        : _getStatusMessage(status, isKredit),
+                    style: GoogleFonts.poppins(fontSize: 11, color: status == 'ditolak' ? Colors.red[800] : Colors.grey[600]),
+                  ),
                 ),
               ],
             ),

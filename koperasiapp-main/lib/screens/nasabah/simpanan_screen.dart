@@ -36,6 +36,8 @@ class _SimpananScreenState extends State<SimpananScreen> {
     final transactions = await _apiService.getMySimpanan();
     return {
       'total_simpanan': dashboard['total_simpanan'],
+      'has_tunggakan': dashboard['has_tunggakan'] ?? false,
+      'tunggakan_info': dashboard['tunggakan_info'],
       'transactions': transactions,
     };
   }
@@ -57,6 +59,8 @@ class _SimpananScreenState extends State<SimpananScreen> {
             final transactions = data['transactions'] as List;
             final recentTransactions = transactions.take(5).toList();
             final double balance = double.tryParse(data['total_simpanan'].toString()) ?? 0;
+            final bool hasTunggakan = data['has_tunggakan'] == true;
+            final tunggakanInfo = data['tunggakan_info'];
 
             return Stack(
               children: [
@@ -68,6 +72,10 @@ class _SimpananScreenState extends State<SimpananScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
+                          if (hasTunggakan) ...[
+                            _buildTunggakanAlertBanner(tunggakanInfo),
+                            const SizedBox(height: 16),
+                          ],
                           _buildBalanceCard(balance),
                           const SizedBox(height: 32),
                           _buildActivityHeader(),
@@ -79,7 +87,7 @@ class _SimpananScreenState extends State<SimpananScreen> {
                     ),
                   ],
                 ),
-                _buildActionButtons(),
+                _buildActionButtons(hasTunggakan),
               ],
             );
           },
@@ -218,39 +226,121 @@ class _SimpananScreenState extends State<SimpananScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildTunggakanAlertBanner(dynamic tunggakanInfo) {
+    String message = 'Fasilitas penarikan simpanan ditangguhkan sementara karena Anda memiliki angsuran yang menunggak.';
+    if (tunggakanInfo != null) {
+      final ke = tunggakanInfo['angsuran_ke'] ?? '-';
+      final nominal = formatRupiah(tunggakanInfo['jumlah_bayar']);
+      message = 'Fasilitas penarikan simpanan ditangguhkan sementara karena Anda memiliki tunggakan Angsuran Ke-$ke sebesar $nominal.';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.red[200]!),
+        boxShadow: [
+          BoxShadow(color: Colors.red.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.red[100], shape: BoxShape.circle),
+            child: Icon(Icons.warning_amber_rounded, color: Colors.red[800], size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Penarikan Ditangguhkan',
+                  style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red[900]),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.red[700], height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0);
+  }
+
+  Widget _buildActionButtons(bool hasTunggakan) {
     return Positioned(
       bottom: 24,
       right: 24,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _buildFab(icon: Icons.upload_rounded, label: 'Tarik Saldo', onTap: () async {
-            final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SimpananTarikScreen()));
-            if (res == true) _loadData();
-          }),
+          _buildFab(
+            icon: Icons.upload_rounded,
+            label: 'Tarik Saldo',
+            isDisabled: hasTunggakan,
+            onTap: () async {
+              if (hasTunggakan) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Penarikan simpanan ditangguhkan karena ada angsuran menunggak.'),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SimpananTarikScreen()));
+              if (res == true) _loadData();
+            },
+          ),
           const SizedBox(height: 12),
-          _buildFab(icon: Icons.add_rounded, label: 'Setor Simpanan', isPrimary: true, onTap: () async {
-            final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SimpananFormScreen()));
-            if (res == true) _loadData();
-          }),
+          _buildFab(
+            icon: Icons.add_rounded,
+            label: 'Setor Simpanan',
+            isPrimary: true,
+            onTap: () async {
+              final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SimpananFormScreen()));
+              if (res == true) _loadData();
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFab({required IconData icon, required String label, required VoidCallback onTap, bool isPrimary = false}) {
+  Widget _buildFab({required IconData icon, required String label, required VoidCallback onTap, bool isPrimary = false, bool isDisabled = false}) {
+    Color bg = isPrimary ? const Color(0xFF0D47A1) : Colors.white;
+    Color fg = isPrimary ? Colors.white : const Color(0xFF0D47A1);
+    if (isDisabled) {
+      bg = Colors.grey[300]!;
+      fg = Colors.grey[600]!;
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: BoxDecoration(color: isPrimary ? const Color(0xFF0D47A1) : Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: const Color(0xFF0D47A1).withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 5))]),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            if (!isDisabled)
+              BoxShadow(color: const Color(0xFF0D47A1).withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 5))
+          ],
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: isPrimary ? Colors.white : const Color(0xFF0D47A1)),
+            Icon(icon, size: 20, color: fg),
             const SizedBox(width: 12),
-            Text(label, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: isPrimary ? Colors.white : const Color(0xFF0D47A1))),
+            Text(label, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: fg)),
           ],
         ),
       ),

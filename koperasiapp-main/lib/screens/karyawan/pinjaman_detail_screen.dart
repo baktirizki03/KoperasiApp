@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import '../../utils/currency_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
@@ -77,6 +79,7 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
   }
 
   void _rejectPinjaman() async {
+    _alasanController.clear();
     final alasan = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -103,6 +106,7 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
       _showLoadingDialog();
       try {
         await _apiService.rejectPinjaman(widget.pinjamanId, alasan);
+        _alasanController.clear();
         if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pinjaman berhasil ditolak'), backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
@@ -116,6 +120,7 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
   }
 
   void _requestRevision() async {
+    _alasanController.clear();
     final alasan = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -142,6 +147,7 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
       _showLoadingDialog();
       try {
         await _apiService.requestRevision(widget.pinjamanId, alasan);
+        _alasanController.clear();
         if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permintaan perbaikan berhasil dikirim'), backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
@@ -189,6 +195,7 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
   }
 
   void _rejectAngsuran(int angsuranId) async {
+    _alasanController.clear();
     final alasan = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -215,11 +222,13 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
       _showLoadingDialog();
       try {
         await _apiService.rejectAngsuran(angsuranId, alasan);
+        _alasanController.clear();
+        if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Penolakan dikirim ke nasabah'), backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
-        _alasanController.clear();
         _loadDetail();
       } catch (e) {
+        if (!mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
@@ -252,6 +261,108 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showEmergencyContactDialog(Map<String, dynamic> pinjaman) {
+    final namaSaudara = (pinjaman['nama_saudara_terdekat'] ?? '').toString().trim();
+    final noHpSaudara = (pinjaman['no_telepon_saudara'] ?? '').toString().trim();
+    final anggota = pinjaman['anggota'] ?? {};
+    final namaAnggota = (anggota['nama_lengkap'] ?? 'Nasabah').toString();
+
+    String cleanPhone = noHpSaudara.replaceAll(RegExp(r'[^0-9+]'), '');
+    String waPhone = cleanPhone;
+    if (waPhone.startsWith('0')) {
+      waPhone = '62' + waPhone.substring(1);
+    } else if (waPhone.startsWith('+')) {
+      waPhone = waPhone.substring(1);
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            const Icon(Icons.contact_phone_rounded, color: Colors.red),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Kontak Saudara Terdekat',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Gunakan kontak darurat ini jika nasabah ($namaAnggota) mengalami keterlambatan/tunggakan angsuran.',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red[100]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Nama Kerabat / Saudara:', style: GoogleFonts.poppins(fontSize: 11, color: Colors.red[800], fontWeight: FontWeight.bold)),
+                  Text(namaSaudara.isNotEmpty ? namaSaudara : 'Belum diisi', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  const SizedBox(height: 12),
+                  Text('Nomor Telepon / WhatsApp:', style: GoogleFonts.poppins(fontSize: 11, color: Colors.red[800], fontWeight: FontWeight.bold)),
+                  Text(noHpSaudara.isNotEmpty ? noHpSaudara : 'Belum diisi', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w900, color: const Color(0xFF0D47A1))),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('TUTUP', style: GoogleFonts.poppins(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ),
+          if (noHpSaudara.isNotEmpty) ...[
+            ElevatedButton.icon(
+              onPressed: () async {
+                final String msg = "Halo Bpk/Ibu $namaSaudara, kami dari Pengurus Koperasi ingin mengonfirmasi perihal angsuran Saudara/i $namaAnggota yang membutuhkan konfirmasi pembayaran. Mohon ketersediaannya untuk menghubungi kami. Terima kasih.";
+                final Uri waUrl = Uri.parse("https://wa.me/$waPhone?text=${Uri.encodeComponent(msg)}");
+                if (await canLaunchUrl(waUrl)) {
+                  await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+                } else {
+                  await Clipboard.setData(ClipboardData(text: noHpSaudara));
+                  if (!ctx.mounted) return;
+                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Nomor HP disalin ke clipboard')));
+                }
+              },
+              icon: const Icon(Icons.chat_bubble_rounded, size: 16, color: Colors.white),
+              label: Text('WhatsApp', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final Uri telUrl = Uri.parse("tel:$cleanPhone");
+                if (await canLaunchUrl(telUrl)) {
+                  await launchUrl(telUrl);
+                } else {
+                  await Clipboard.setData(ClipboardData(text: noHpSaudara));
+                  if (!ctx.mounted) return;
+                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Nomor HP disalin ke clipboard')));
+                }
+              },
+              icon: const Icon(Icons.phone_rounded, size: 16, color: Colors.white),
+              label: Text('Panggil', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D47A1), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -302,6 +413,21 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                         _buildDetailRow('TTL', '${anggota['tempat_lahir'] ?? '-'}, ${anggota['tanggal_lahir'] ?? '-'}'),
                         _buildDetailRow('Alamat', anggota['domisili'] ?? '-'),
                         _buildDetailRow('Pekerjaan', pinjaman['departemen_pekerjaan'] ?? anggota['pekerjaan'] ?? '-'),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showEmergencyContactDialog(pinjaman),
+                            icon: const Icon(Icons.contact_phone_rounded, size: 16, color: Colors.white),
+                            label: Text('KONTAK SAUDARA TERDEKAT', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red[700],
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
                       ],
                     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 

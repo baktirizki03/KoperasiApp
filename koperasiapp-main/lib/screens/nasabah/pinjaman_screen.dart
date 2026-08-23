@@ -145,16 +145,37 @@ class _PinjamanScreenState extends State<PinjamanScreen> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.of(context).push(MaterialPageRoute(builder: (ctx) => PinjamanFormScreen()));
-          if (result == true) _loadData();
+      floatingActionButton: FutureBuilder<List<dynamic>>(
+        future: _pinjamanFuture,
+        builder: (context, snapshot) {
+          final pinjamanList = snapshot.data ?? [];
+          final bool hasActiveLoan = pinjamanList.any((p) {
+            final st = p['status'].toString().toLowerCase();
+            return st == 'pending' || st == 'disetujui' || st == 'perlu_perbaikan';
+          });
+
+          return FloatingActionButton.extended(
+            onPressed: () async {
+              if (hasActiveLoan) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Anda masih memiliki pinjaman aktif/berjalan. Selesaikan dahulu sebelum mengajukan baru.'),
+                    backgroundColor: Colors.orange,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              final result = await Navigator.of(context).push(MaterialPageRoute(builder: (ctx) => PinjamanFormScreen()));
+              if (result == true) _loadData();
+            },
+            label: Text(hasActiveLoan ? 'Pinjaman Aktif Berjalan' : 'Ajukan Pinjaman', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white)),
+            icon: Icon(hasActiveLoan ? Icons.lock_outline_rounded : Icons.add, color: Colors.white),
+            backgroundColor: hasActiveLoan ? Colors.grey[600] : const Color(0xFF0D47A1),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ).animate().scale(delay: 500.ms);
         },
-        label: Text('Ajukan Pinjaman', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white)),
-        icon: const Icon(Icons.add, color: Colors.white),
-        backgroundColor: const Color(0xFF0D47A1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ).animate().scale(delay: 500.ms),
+      ),
     );
   }
 

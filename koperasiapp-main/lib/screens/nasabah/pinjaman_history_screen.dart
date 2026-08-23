@@ -222,7 +222,9 @@ class _PinjamanHistoryScreenState extends State<PinjamanHistoryScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.02),
+              color: (status == 'ditolak' || status == 'perlu_perbaikan')
+                  ? (status == 'perlu_perbaikan' ? Colors.orange.withOpacity(0.05) : Colors.red.withOpacity(0.05))
+                  : Theme.of(context).colorScheme.primary.withOpacity(0.02),
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(20),
                 bottomRight: Radius.circular(20),
@@ -231,11 +233,22 @@ class _PinjamanHistoryScreenState extends State<PinjamanHistoryScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.check_circle_outline, size: 14, color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
+                Icon(
+                  (status == 'ditolak' || status == 'perlu_perbaikan') ? Icons.info_outline_rounded : Icons.check_circle_outline,
+                  size: 14,
+                  color: status == 'perlu_perbaikan' ? Colors.orange[800] : (status == 'ditolak' ? Colors.red : Theme.of(context).colorScheme.primary.withOpacity(0.4)),
+                ),
                 const SizedBox(width: 8),
-                Text(
-                  _getStatusMessage(status),
-                  style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+                Expanded(
+                  child: Text(
+                    (status == 'ditolak' || status == 'perlu_perbaikan') && pinjaman['alasan_penolakan'] != null && pinjaman['alasan_penolakan'].toString().isNotEmpty
+                        ? '${status == "perlu_perbaikan" ? "Revisi" : "Ditolak"}: ${pinjaman["alasan_penolakan"]}'
+                        : _getStatusMessage(status),
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: status == 'perlu_perbaikan' ? Colors.orange[900] : (status == 'ditolak' ? Colors.red[800] : Colors.grey[600]),
+                    ),
+                  ),
                 ),
               ],
             ),

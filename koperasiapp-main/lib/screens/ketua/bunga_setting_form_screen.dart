@@ -160,13 +160,33 @@ class _BungaSettingFormScreenState extends State<BungaSettingFormScreen> {
             validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
           ),
           const SizedBox(height: 20),
-          _buildTextField(
-            controller: _tenorController,
-            label: 'Tenor (Bulan)',
-            hint: 'Contoh: 12',
-            icon: Icons.calendar_month_rounded,
-            keyboardType: TextInputType.number,
-            validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tenor (Bulan)', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0D47A1))),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: ['3', '6', '10', '12'].contains(_tenorController.text) ? _tenorController.text : null,
+                isExpanded: true,
+                style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                decoration: InputDecoration(
+                  hintText: 'Pilih Tenor (Bulan)...',
+                  hintStyle: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 13),
+                  prefixIcon: const Icon(Icons.calendar_month_rounded, color: Color(0xFF0D47A1), size: 20),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                ),
+                items: ['3', '6', '10', '12'].map((t) => DropdownMenuItem(value: t, child: Text('$t Bulan'))).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _tenorController.text = val);
+                  }
+                },
+                validator: (val) => (_tenorController.text.isEmpty) ? 'Wajib dipilih' : null,
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           _buildTextField(

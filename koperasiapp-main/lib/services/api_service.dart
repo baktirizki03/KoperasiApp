@@ -322,7 +322,7 @@ class ApiService {
   }
 
   Future<List<dynamic>> getSimpananPending() async {
-    final responseData = await get('simpanan');
+    final responseData = await get('simpanan?status=pending');
     if (responseData is List) return responseData;
     if (responseData is Map && responseData.containsKey('data')) {
       return responseData['data'] as List<dynamic>;
@@ -671,5 +671,13 @@ class ApiService {
     } else {
       throw Exception('Gagal mengunduh PDF: ${response.statusCode}');
     }
+  }
+
+  Future<dynamic> sendVerificationOtp() async {
+    return await post('email/send-otp', {});
+  }
+
+  Future<dynamic> verifyOtp(String otpCode) async {
+    return await post('email/verify-otp', {'otp_code': otpCode});
   }
 }
