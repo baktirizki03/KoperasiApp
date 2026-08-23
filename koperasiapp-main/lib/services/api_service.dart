@@ -680,4 +680,22 @@ class ApiService {
   Future<dynamic> verifyOtp(String otpCode) async {
     return await post('email/verify-otp', {'otp_code': otpCode});
   }
+
+  Future<dynamic> sendForgotPasswordOtp(String email) async {
+    return await post('forgot-password/send-otp', {'email': email});
+  }
+
+  Future<dynamic> resetPasswordWithOtp(
+    String email,
+    String otpCode,
+    String newPassword,
+    String newPasswordConfirmation,
+  ) async {
+    return await post('forgot-password/reset', {
+      'email': email,
+      'otp_code': otpCode,
+      'password': newPassword,
+      'password_confirmation': newPasswordConfirmation,
+    });
+  }
 }
