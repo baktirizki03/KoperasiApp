@@ -300,7 +300,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }
             }).toList();
 
-            final isEmailVerified = data['is_email_verified'] ?? true;
+            final bool isEmailVerified = data['is_email_verified'] == true;
 
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),

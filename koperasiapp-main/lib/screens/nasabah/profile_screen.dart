@@ -65,6 +65,147 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _handleRequestOtp() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final res = await _apiService.sendVerificationOtp();
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message'] ?? 'Kode OTP berhasil dikirim ke email Anda'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _showOtpVerificationDialog();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengirim OTP: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showOtpVerificationDialog() {
+    final otpController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D47A1).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.password_rounded, color: Color(0xFF0D47A1), size: 36),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Verifikasi Kode OTP',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Masukkan 6 digit kode OTP yang telah dikirim ke email Anda.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: otpController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 8, color: const Color(0xFF0D47A1)),
+                      decoration: InputDecoration(
+                        counterText: '',
+                        hintText: '000000',
+                        hintStyle: GoogleFonts.poppins(color: Colors.grey[300], letterSpacing: 8),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                            child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    final otp = otpController.text.trim();
+                                    if (otp.length != 6) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Kode OTP harus 6 digit')),
+                                      );
+                                      return;
+                                    }
+                                    setDialogState(() => isSubmitting = true);
+                                    try {
+                                      final res = await _apiService.verifyOtp(otp);
+                                      if (!mounted) return;
+                                      Navigator.pop(ctx);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(res['message'] ?? 'Email berhasil diverifikasi!'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                      _loadProfile();
+                                    } catch (e) {
+                                      setDialogState(() => isSubmitting = false);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Verifikasi gagal: $e'), backgroundColor: Colors.red),
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0D47A1),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: isSubmitting
+                                ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : Text('Verifikasi', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,6 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           final user = snapshot.data!;
           final anggota = user['anggota'];
+          final bool isEmailVerified = user['email_verified_at'] != null;
           final bool isKtpUploaded = anggota != null && anggota['ktp_path'] != null;
           final val = anggota?['is_ktp_verified'];
           final bool isKtpVerified = val == 1 || val == true || val.toString() == '1' || val.toString() == 'true';
@@ -94,6 +236,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (!isEmailVerified) _buildNotificationBanner('Email Belum Terverifikasi', 'Ketuk di sini untuk kirim kode OTP verifikasi email.', Colors.orange, Icons.mark_email_unread_rounded, onPressed: _handleRequestOtp),
                         if (!isProfileComplete) _buildNotificationBanner('Profil Belum Lengkap', 'Silakan lengkapi data diri Anda.', Colors.orange, Icons.edit_rounded, onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileEditScreen(anggota: anggota ?? {})));
                         }),
