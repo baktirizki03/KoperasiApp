@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import '../../utils/currency_formatter.dart';
 import '../../services/api_service.dart';
 import 'pinjaman_form_screen.dart';
@@ -237,34 +238,80 @@ class _NasabahPinjamanDetailScreenState
     bool isPending = angsuran['status'] == 'menunggu_konfirmasi';
     bool isDitolak = angsuran['status'] == 'ditolak';
 
+    String dueDateFormatted = '-';
+    bool isOverdue = false;
+    if (angsuran['tanggal_jatuh_tempo'] != null) {
+      final dueDate = DateTime.tryParse(angsuran['tanggal_jatuh_tempo'].toString());
+      if (dueDate != null) {
+        dueDateFormatted = DateFormat('dd MMM yyyy').format(dueDate);
+        if (!isLunas && dueDate.isBefore(DateTime.now())) {
+          isOverdue = true;
+        }
+      }
+    }
+
     IconData icon = isLunas ? Icons.check_circle_rounded : (isPending ? Icons.pending_rounded : Icons.payment_rounded);
-    Color color = isLunas ? Colors.green : (isPending ? Colors.orange : const Color(0xFF0D47A1));
+    Color color = isLunas ? Colors.green : (isPending ? Colors.orange : (isOverdue ? Colors.red : const Color(0xFF0D47A1)));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: isOverdue ? Border.all(color: Colors.red.shade200, width: 1.5) : null,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
       child: Row(
         children: [
-          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)), child: Icon(icon, color: color, size: 20)),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+            child: Icon(icon, color: color, size: 20),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Angsuran ke-${angsuran['angsuran_ke']}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: const Color(0xFF2D3436))),
-                Text(formatRupiah(angsuran['jumlah_bayar']), style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+                Row(
+                  children: [
+                    Text('Angsuran ke-${angsuran['angsuran_ke']}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: const Color(0xFF2D3436))),
+                    if (isOverdue) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.red.shade200)),
+                        child: Text('MENUNGGAK', style: GoogleFonts.poppins(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(formatRupiah(angsuran['jumlah_bayar']), style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+                const SizedBox(height: 2),
+                Text('Jatuh Tempo: $dueDateFormatted', style: GoogleFonts.poppins(fontSize: 11, color: isOverdue ? Colors.red : Colors.grey[600])),
               ],
             ),
           ),
           if (!isLunas && !isPending)
             ElevatedButton(
               onPressed: () => _konfirmasiBayar(angsuran['id']),
-              style: ElevatedButton.styleFrom(backgroundColor: isDitolak ? Colors.orange : const Color(0xFF0D47A1), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDitolak ? Colors.orange : (isOverdue ? Colors.red.shade700 : const Color(0xFF0D47A1)),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              ),
               child: Text(isDitolak ? 'Revisi' : 'Bayar', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold)),
             )
           else
-            Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), child: Text(isLunas ? 'LUNAS' : 'PROSES', style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: color))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: Text(isLunas ? 'LUNAS' : 'PROSES', style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
+            ),
         ],
       ),
     ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0);

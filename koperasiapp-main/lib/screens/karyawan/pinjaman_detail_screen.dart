@@ -456,7 +456,10 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                         _buildDetailRow('Bunga', '$bungaPersenStr (${formatRupiah(bungaNominal)})'),
                         _buildDetailRow('Total Pengembalian', formatRupiah(totalBayar)),
                         _buildDetailRow('Keperluan', pinjaman['untuk_keperluan'] ?? '-'),
-                        _buildDetailRow('Metode', pinjaman['metode_pembayaran']?.toUpperCase() ?? 'TRANSFER'),
+                        _buildDetailRow('Bank Penerima', pinjaman['nama_bank'] ?? anggota['nama_bank'] ?? '-'),
+                        _buildDetailRow('Nomor Rekening', pinjaman['no_rekening'] ?? anggota['no_rekening'] ?? '-'),
+                        if (isApproved && pinjaman['acc_by_name'] != null)
+                          _buildDetailRow('Disetujui Oleh', '${pinjaman['acc_by_name']} (${(pinjaman['acc_by_role'] ?? 'Petugas').toString().toUpperCase()})'),
                       ],
                     ).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
 
