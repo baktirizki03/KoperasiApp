@@ -150,6 +150,33 @@ class _NasabahPinjamanDetailScreenState
             ],
           ),
           if (status == 'ditolak' || status == 'perlu_perbaikan') _buildAlertBox(pinjaman),
+          if (status == 'disetujui') ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.greenAccent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.greenAccent.withOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_rounded, color: Colors.greenAccent, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('STATUS PENCAIRAN DANA (2 HARI KERJA)', style: GoogleFonts.poppins(fontSize: 9, color: Colors.white70, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                        const SizedBox(height: 2),
+                        Text('Sedang diproses transfer ke ${pinjaman['nama_bank'] ?? 'Bank'} (${pinjaman['no_rekening'] ?? '-'})', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           _buildDivider(),
           const SizedBox(height: 20),
