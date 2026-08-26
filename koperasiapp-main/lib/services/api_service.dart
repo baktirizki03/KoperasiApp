@@ -187,6 +187,20 @@ class ApiService {
     });
   }
 
+  Future<dynamic> postPublic(String endpoint, Map<String, dynamic> data) async {
+    return _safeCall(() async {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/$endpoint'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(data),
+      );
+      return _handleResponse(response);
+    });
+  }
+
   Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
     return _safeCall(() async {
       String token = await _getToken();
@@ -682,7 +696,7 @@ class ApiService {
   }
 
   Future<dynamic> sendForgotPasswordOtp(String email) async {
-    return await post('forgot-password/send-otp', {'email': email});
+    return await postPublic('forgot-password/send-otp', {'email': email});
   }
 
   Future<dynamic> resetPasswordWithOtp(
@@ -691,7 +705,7 @@ class ApiService {
     String newPassword,
     String newPasswordConfirmation,
   ) async {
-    return await post('forgot-password/reset', {
+    return await postPublic('forgot-password/reset', {
       'email': email,
       'otp_code': otpCode,
       'password': newPassword,
