@@ -382,9 +382,20 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
 
           final pinjaman = snapshot.data!;
           final anggota = pinjaman['anggota'];
-          final angsurans = pinjaman['angsurans'] as List;
+          final angsurans = (pinjaman['angsurans'] as List?) ?? [];
           final bool isPending = pinjaman['status'] == 'pending';
           final bool isApproved = pinjaman['status'] == 'disetujui' || pinjaman['status'] == 'lunas';
+
+          // Cek apakah nasabah memiliki angsuran yang menunggak
+          final bool hasTunggakan = angsurans.any((ang) {
+            final status = (ang['status'] ?? '').toString().toLowerCase();
+            if (status == 'lunas') return false;
+            final dueDateStr = ang['tanggal_jatuh_tempo'];
+            if (dueDateStr == null) return false;
+            final dueDate = DateTime.tryParse(dueDateStr);
+            if (dueDate == null) return false;
+            return dueDate.isBefore(DateTime.now());
+          });
 
           double bungaPersen = double.tryParse(pinjaman['bunga_persen']?.toString() ?? '0') ?? 0;
           String bungaPersenStr = bungaPersen % 1 == 0 ? '${bungaPersen.toInt()}%' : '$bungaPersen%';
@@ -413,21 +424,23 @@ class _PinjamanDetailScreenState extends State<PinjamanDetailScreen> {
                         _buildDetailRow('TTL', '${anggota['tempat_lahir'] ?? '-'}, ${anggota['tanggal_lahir'] ?? '-'}'),
                         _buildDetailRow('Alamat', anggota['domisili'] ?? '-'),
                         _buildDetailRow('Pekerjaan', pinjaman['departemen_pekerjaan'] ?? anggota['pekerjaan'] ?? '-'),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _showEmergencyContactDialog(pinjaman),
-                            icon: const Icon(Icons.contact_phone_rounded, size: 16, color: Colors.white),
-                            label: Text('KONTAK SAUDARA TERDEKAT', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red[700],
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              elevation: 0,
+                        if (hasTunggakan) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _showEmergencyContactDialog(pinjaman),
+                              icon: const Icon(Icons.contact_phone_rounded, size: 16, color: Colors.white),
+                              label: Text('HUBUNGI KONTAK DARURAT (MENUNGGAK)', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red[700],
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
